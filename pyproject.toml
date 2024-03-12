@@ -16,7 +16,6 @@ dependencies = [
     'mahotas',
     'scikit-image',
     'opencv-python'
-
 ]
 dynamic = ["version"]
 
