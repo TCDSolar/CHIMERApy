@@ -1,13 +1,9 @@
-import astropy
 from astropy import wcs
 from astropy.io import fits
 from astropy.modeling.models import Gaussian2D
 import astropy.units as u
-from astropy.utils.data import download_file
 from astropy.visualization import astropy_mpl_style
-import cv2
 import glob
-import mahotas
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy
@@ -15,7 +11,6 @@ import scipy.interpolate
 import sunpy
 import sunpy.map
 import sys
-from scipy.interpolate import interp2d, RectBivariateSpline
 import sunpy.data.sample
 
 
