@@ -26,4 +26,4 @@ def test_chimera(tmp_path):
     with ch_summary_file.open("r") as f:
         ch_summary_text = f.read()
 
-    assert ch_summary_text == test_summary_text
+    assert ascii(ch_summary_text) == ascii(test_summary_text)
