@@ -18,8 +18,8 @@ def test_chimera(tmp_path):
     os.chdir(tmp_path)
     chimera_legacy()
 
-    test_summary_file = Path(__file__).parent / 'test_ch_summary.txt'
-    with test_summary_file.open('r') as f:
+    test_summary_file = Path(__file__).parent / "test_ch_summary.txt"
+    with test_summary_file.open("r") as f:
         test_summary_text = f.read()
 
     ch_summary_file = tmp_path / "ch_summary.txt"
