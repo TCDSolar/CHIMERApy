@@ -12,11 +12,10 @@ readme = "README.rst"
 requires-python = ">=3.9"
 license = { file = "licenses/LICENSE.rst", content-type = "text/plain" }
 dependencies = [
-    'sunpy[net,map]',
-    'mahotas',
+    'sunpy[net,map]>=5.1.0',
+    'mahotas>=1.4.0',
     'scikit-image',
-    'opencv-python'
-
+    'opencv-python',
 ]
 dynamic = ["version"]
 
@@ -31,6 +30,7 @@ docs = [
     "sphinx-automodapi",
     "tomli; python_version <\"3.11\"",
 ]
+dev = ["chimerapy[docs,tests]"]
 
 [project.urls]
 repository = "chimerapy.readthedocs.io"
@@ -88,3 +88,7 @@ exclude_lines = [
   # Don't complain about IPython completion helper
   "def _ipython_key_completions_",
 ]
+
+[tool.codespell]
+skip = '*.fits,*.fts,*.header,*.json,*.xsh,*cache*,*egg*,*extern*,.git,.idea,.tox,_build,*truncated,*.svg,.asv_env,.history'
+ignore-words-list = 'alog, nd, nin, ot, te, upto, afile, reord'

@@ -3,21 +3,20 @@
 """
 
 
-from astropy import wcs
-from astropy.io import fits
-from astropy.modeling.models import Gaussian2D
-from skimage.util import img_as_ubyte
+import glob
+import sys
 
 import astropy.units as u
-
 import cv2
-import glob
 import mahotas
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
 import sunpy.map
-import sys
+from astropy import wcs
+from astropy.io import fits
+from astropy.modeling.models import Gaussian2D
+from skimage.util import img_as_ubyte
 
 
 def chimera_legacy():
@@ -28,10 +27,23 @@ def chimera_legacy():
     im211 = glob.glob(file_path + "*211*.fts.gz")
     imhmi = glob.glob(file_path + "*hmi*.fts.gz")
 
+    circ, data, datb, datc, dattoarc, hedb, iarr, props, rs, slate, center, xgrid, ygrid = chimera(
+        im171, im193, im211, imhmi
+    )
+
+    # =====sets ident back to max value of iarr======
+
+    # ident = ident - 1
+    np.savetxt("ch_summary.txt", props, fmt="%s")
+
+    plot_tricolor(data, datb, datc, xgrid, ygrid, slate)
+    plot_mask(slate, iarr, circ, rs, dattoarc, center, xgrid, ygrid, hedb)
+
+
+def chimera(im171, im193, im211, imhmi):
     if im171 == [] or im193 == [] or im211 == [] or imhmi == []:
         print("Not all required files present")
         sys.exit()
-
     # =====Reads in data and resizes images=====
     x = np.arange(0, 1024) * 4
     hdu_number = 0
@@ -39,34 +51,26 @@ def chimera_legacy():
     data = fits.getdata(im171[0], ext=0) / (heda["EXPTIME"])
     dn = scipy.interpolate.interp2d(x, x, data)
     data = dn(np.arange(0, 4096), np.arange(0, 4096))
-
     hedb = fits.getheader(im193[0], hdu_number)
     datb = fits.getdata(im193[0], ext=0) / (hedb["EXPTIME"])
     dn = scipy.interpolate.interp2d(x, x, datb)
     datb = dn(np.arange(0, 4096), np.arange(0, 4096))
-
     hedc = fits.getheader(im211[0], hdu_number)
     datc = fits.getdata(im211[0], ext=0) / (hedc["EXPTIME"])
     dn = scipy.interpolate.interp2d(x, x, datc)
     datc = dn(np.arange(0, 4096), np.arange(0, 4096))
-
     hedm = fits.getheader(imhmi[0], hdu_number)
     datm = fits.getdata(imhmi[0], ext=0)
     # dn = scipy.interpolate.interp2d(np.arange(4096), np.arange(4096), datm)
     # datm = dn(np.arange(0, 1024)*4, np.arange(0, 1024)*4)
-
     if hedm["crota1"] > 90:
         datm = np.rot90(np.rot90(datm))
-
     # =====Specifies solar radius and calculates conversion value of pixel to arcsec=====
-
     s = np.shape(data)
     rs = heda["rsun"]
-
     if hedb["ctype1"] != "solar_x ":
         hedb["ctype1"] = "solar_x "
         hedb["ctype2"] = "solar_y "
-
     if heda["cdelt1"] > 1:
         heda["cdelt1"], heda["cdelt2"], heda["crpix1"], heda["crpix2"] = (
             heda["cdelt1"] / 4.0,
@@ -86,35 +90,26 @@ def chimera_legacy():
             hedc["crpix1"] * 4.0,
             hedc["crpix2"] * 4.0,
         )
-
     dattoarc = heda["cdelt1"]
-    conver = (s[0] / 2) * dattoarc / hedm["cdelt1"] - (s[1] / 2)
     convermul = dattoarc / hedm["cdelt1"]
-
     # =====Alternative coordinate systems=====
-
     hdul = fits.open(im171[0])
-    hdul[0].header['CUNIT1'] = 'arcsec'
-    hdul[0].header['CUNIT2'] = 'arcsec'
+    hdul[0].header["CUNIT1"] = "arcsec"
+    hdul[0].header["CUNIT2"] = "arcsec"
     aia = sunpy.map.Map(hdul[0].data, hdul[0].header)
     adj = 4096.0 / aia.dimensions[0].value
     x, y = (np.meshgrid(*[np.arange(adj * v.value) for v in aia.dimensions]) * u.pixel) / adj
     hpc = aia.pixel_to_world(x, y)
     hg = hpc.transform_to(sunpy.coordinates.frames.HeliographicStonyhurst)
-
     csys = wcs.WCS(hedb)
-
     # =======setting up arrays to be used============
-
     ident = 1
     iarr = np.zeros((s[0], s[1]), dtype=np.byte)
     offarr, slate = np.array(iarr), np.array(iarr)
     bmcool = np.zeros((s[0], s[1]), dtype=np.float32)
     cand, bmmix, bmhot = np.array(bmcool), np.array(bmcool), np.array(bmcool)
     circ = np.zeros((s[0], s[1]), dtype=int)
-
     # =======creation of a 2d gaussian for magnetic cut offs===========
-
     r = (s[1] / 2.0) - 450
     xgrid, ygrid = np.meshgrid(np.arange(s[0]), np.arange(s[1]))
     center = [int(s[1] / 2.0), int(s[1] / 2.0)]
@@ -122,9 +117,7 @@ def chimera_legacy():
     y, x = np.mgrid[0:4096, 0:4096]
     garr = Gaussian2D(1, s[0] / 2, s[1] / 2, 2000 / 2.3548, 2000 / 2.3548)(x, y)
     garr[w] = 1.0
-
     # ======creation of array for CH properties==========
-
     props = np.zeros((26, 30), dtype="<U16")
     props[:, 0] = (
         "ID",
@@ -140,7 +133,7 @@ def chimera_legacy():
         "X_SB",
         "Y_SB",
         "WIDTH",
-        "WIDTH°",
+        "WIDTH",
         "AREA",
         "AREA%",
         "<B>",
@@ -158,7 +151,7 @@ def chimera_legacy():
         "num",
         '"',
         '"',
-        "H°",
+        "H deg",
         '"',
         '"',
         '"',
@@ -167,8 +160,8 @@ def chimera_legacy():
         '"',
         '"',
         '"',
-        "H°",
-        "°",
+        "H deg",
+        "deg",
         "Mm^2",
         "%",
         "G",
@@ -182,53 +175,38 @@ def chimera_legacy():
         "Mx",
         "Mx",
     )
-
     # =====removes negative data values=====
-
     data[np.where(data <= 0)] = 0
     datb[np.where(datb <= 0)] = 0
     datc[np.where(datc <= 0)] = 0
-
     # ============make a multi-wavelength image for contours==================
-
     with np.errstate(divide="ignore"):
         t0 = np.log10(datc)
         t1 = np.log10(datb)
         t2 = np.log10(data)
-
     t0[np.where(t0 < 0.8)] = 0.8
     t0[np.where(t0 > 2.7)] = 2.7
     t1[np.where(t1 < 1.4)] = 1.4
     t1[np.where(t1 > 3.0)] = 3.0
     t2[np.where(t2 < 1.2)] = 1.2
     t2[np.where(t2 > 3.9)] = 3.9
-
     t0 = np.array(((t0 - 0.8) / (2.7 - 0.8)) * 255, dtype=np.float32)
     t1 = np.array(((t1 - 1.4) / (3.0 - 1.4)) * 255, dtype=np.float32)
     t2 = np.array(((t2 - 1.2) / (3.9 - 1.2)) * 255, dtype=np.float32)
-
     # ====create 3 segmented bitmasks=====
-
     with np.errstate(divide="ignore", invalid="ignore"):
         bmmix[np.where(t2 / t0 >= ((np.mean(data) * 0.6357) / (np.mean(datc))))] = 1
         bmhot[np.where(t0 + t1 < (0.7 * (np.mean(datb) + np.mean(datc))))] = 1
         bmcool[np.where(t2 / t1 >= ((np.mean(data) * 1.5102) / (np.mean(datb))))] = 1
-
     # ====logical conjunction of 3 segmentations=======
-
     cand = bmcool * bmmix * bmhot
-
     # ====plot tricolour image with lon/lat conotours=======
-
     # ======removes off detector mis-identifications==========
-
     r = (s[1] / 2.0) - 100
     w = np.where((xgrid - center[0]) ** 2 + (ygrid - center[1]) ** 2 <= r**2)
     circ[w] = 1.0
     cand = cand * circ
-
-    # =======Seperates on-disk and off-limb CHs===============
-
+    # =======Separates on-disk and off-limb CHs===============
     circ[:] = 0
     r = (rs / dattoarc) - 10
     w = np.where((xgrid - center[0]) ** 2 + (ygrid - center[1]) ** 2 <= r**2)
@@ -237,31 +215,20 @@ def chimera_legacy():
     w = np.where((xgrid - center[0]) ** 2 + (ygrid - center[1]) ** 2 >= r**2)
     circ[w] = 1.0
     cand = cand * circ
-
     # ====open file for property storage=====
-
     # =====contours the identified datapoints=======
-
     cand = np.array(cand, dtype=np.uint8)
     cont, heir = cv2.findContours(cand, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
     # ======sorts contours by size============
-
     sizes = []
     for i in range(len(cont)):
         sizes = np.append(sizes, len(cont[i]))
-
     reord = sizes.ravel().argsort()[::-1]
-
     tmp = list(cont)
-
     for i in range(len(cont)):
         tmp[i] = cont[reord[i]]
-
     cont = list(tmp)
-
     # =====cycles through contours=========
-
     for i in range(len(cont)):
         x = np.append(x, len(cont[i]))
 
@@ -277,7 +244,7 @@ def chimera_legacy():
         if arcar > 1000:
             # =====finds centroid=======
 
-            chpts = len(cont[i])
+            # chpts = len(cont[i])
             cent = [np.mean(cont[i][:, 0, 0]), np.mean(cont[i][:, 0, 1])]
 
             # ===remove quiet sun regions encompassed by coronal holes======
@@ -309,11 +276,15 @@ def chimera_legacy():
                 if (((arccent[0] ** 2) + (arccent[1] ** 2)) > (rs**2)) or (
                     np.sum(np.array(csys.all_pix2world(cont[i][0, 0, 0], cont[i][0, 0, 1], 0)) ** 2) > (rs**2)
                 ):
-                    mahotas.polygon.fill_polygon(np.array(list(zip(cont[i][:, 0, 1], cont[i][:, 0, 0]))), offarr)
+                    mahotas.polygon.fill_polygon(
+                        np.array(list(zip(cont[i][:, 0, 1], cont[i][:, 0, 0]))), offarr
+                    )
                 else:
                     # =====classifies on disk coronal holes=======
 
-                    mahotas.polygon.fill_polygon(np.array(list(zip(cont[i][:, 0, 1], cont[i][:, 0, 0]))), slate)
+                    mahotas.polygon.fill_polygon(
+                        np.array(list(zip(cont[i][:, 0, 1], cont[i][:, 0, 0]))), slate
+                    )
                     poslin = np.where(slate == 1)
                     slate[:] = 0
 
@@ -338,7 +309,7 @@ def chimera_legacy():
                     wh1 = np.where(npix[1] > 0)
                     wh2 = np.where(npix[1] < 0)
 
-                    # =====magnetic cut offs dependant on area=========
+                    # =====magnetic cut offs dependent on area=========
 
                     if (
                         np.absolute((np.sum(npix[0][wh1]) - np.sum(npix[0][wh2])) / np.sqrt(np.sum(npix[0])))
@@ -355,8 +326,12 @@ def chimera_legacy():
 
                     # ====create an accurate center point=======
 
-                    ypos = np.sum((poslin[0]) * np.absolute(hg.lat[poslin])) / np.sum(np.absolute(hg.lat[poslin]))
-                    xpos = np.sum((poslin[1]) * np.absolute(hg.lon[poslin])) / np.sum(np.absolute(hg.lon[poslin]))
+                    ypos = np.sum((poslin[0]) * np.absolute(hg.lat[poslin])) / np.sum(
+                        np.absolute(hg.lat[poslin])
+                    )
+                    xpos = np.sum((poslin[1]) * np.absolute(hg.lon[poslin])) / np.sum(
+                        np.absolute(hg.lon[poslin])
+                    )
 
                     arccent = csys.all_pix2world(xpos, ypos, 0)
 
@@ -371,47 +346,47 @@ def chimera_legacy():
                     truarcar = trupixar * (dattoarc**2)
                     trummar = truarcar * ((6.96e08 / rs) ** 2)
 
-                    # ====find CH extent in lattitude and longitude========
+                    # ====find CH extent in latitude and longitude========
 
-                    maxxlat = hg.lat[
-                        cont[i][np.where(cont[i][:, 0, 0] == np.max(cont[i][:, 0, 0]))[0][0], 0, 1],
-                        np.max(cont[i][:, 0, 0]),
-                    ]
+                    # maxxlat = hg.lat[
+                    #     cont[i][np.where(cont[i][:, 0, 0] == np.max(cont[i][:, 0, 0]))[0][0], 0, 1],
+                    #     np.max(cont[i][:, 0, 0]),
+                    # ]
                     maxxlon = hg.lon[
                         cont[i][np.where(cont[i][:, 0, 0] == np.max(cont[i][:, 0, 0]))[0][0], 0, 1],
                         np.max(cont[i][:, 0, 0]),
                     ]
-                    maxylat = hg.lat[
-                        np.max(cont[i][:, 0, 1]),
-                        cont[i][np.where(cont[i][:, 0, 1] == np.max(cont[i][:, 0, 1]))[0][0], 0, 0],
-                    ]
-                    maxylon = hg.lon[
-                        np.max(cont[i][:, 0, 1]),
-                        cont[i][np.where(cont[i][:, 0, 1] == np.max(cont[i][:, 0, 1]))[0][0], 0, 0],
-                    ]
-                    minxlat = hg.lat[
-                        cont[i][np.where(cont[i][:, 0, 0] == np.min(cont[i][:, 0, 0]))[0][0], 0, 1],
-                        np.min(cont[i][:, 0, 0]),
-                    ]
+                    # maxylat = hg.lat[
+                    #     np.max(cont[i][:, 0, 1]),
+                    #     cont[i][np.where(cont[i][:, 0, 1] == np.max(cont[i][:, 0, 1]))[0][0], 0, 0],
+                    # ]
+                    # maxylon = hg.lon[
+                    #     np.max(cont[i][:, 0, 1]),
+                    #     cont[i][np.where(cont[i][:, 0, 1] == np.max(cont[i][:, 0, 1]))[0][0], 0, 0],
+                    # ]
+                    # minxlat = hg.lat[
+                    #     cont[i][np.where(cont[i][:, 0, 0] == np.min(cont[i][:, 0, 0]))[0][0], 0, 1],
+                    #     np.min(cont[i][:, 0, 0]),
+                    # ]
                     minxlon = hg.lon[
                         cont[i][np.where(cont[i][:, 0, 0] == np.min(cont[i][:, 0, 0]))[0][0], 0, 1],
                         np.min(cont[i][:, 0, 0]),
                     ]
-                    minylat = hg.lat[
-                        np.min(cont[i][:, 0, 1]),
-                        cont[i][np.where(cont[i][:, 0, 1] == np.min(cont[i][:, 0, 1]))[0][0], 0, 0],
-                    ]
-                    minylon = hg.lon[
-                        np.min(cont[i][:, 0, 1]),
-                        cont[i][np.where(cont[i][:, 0, 1] == np.min(cont[i][:, 0, 1]))[0][0], 0, 0],
-                    ]
+                    # minylat = hg.lat[
+                    #     np.min(cont[i][:, 0, 1]),
+                    #     cont[i][np.where(cont[i][:, 0, 1] == np.min(cont[i][:, 0, 1]))[0][0], 0, 0],
+                    # ]
+                    # minylon = hg.lon[
+                    #     np.min(cont[i][:, 0, 1]),
+                    #     cont[i][np.where(cont[i][:, 0, 1] == np.min(cont[i][:, 0, 1]))[0][0], 0, 0],
+                    # ]
 
                     # =====CH centroid in lat/lon=======
 
                     centlat = hg.lat[int(ypos), int(xpos)]
                     centlon = hg.lon[int(ypos), int(xpos)]
 
-                    # ====caluclate the mean magnetic field=====
+                    # ====calculate the mean magnetic field=====
 
                     mB = np.mean(datm[pos[:, 0], pos[:, 1]])
                     mBpos = np.sum(npix[0][wh1] * npix[1][wh1]) / np.sum(npix[0][wh1])
@@ -494,68 +469,53 @@ def chimera_legacy():
                     # =====sets up code for next possible coronal hole=====
 
                     ident = ident + 1
-
-    # =====sets ident back to max value of iarr======
-
-    ident = ident - 1
-    np.savetxt("ch_summary.txt", props, fmt="%s")
-
-    # ====create image in output folder=======
-    # from scipy.misc import bytescale
+    return circ, data, datb, datc, dattoarc, hedb, iarr, props, rs, slate, center, xgrid, ygrid
 
 
-    def rescale01(arr, cmin=None, cmax=None, a=0, b=1):
-        if cmin or cmax:
-            arr = np.clip(arr, cmin, cmax)
-        return (b - a) * ((arr - np.min(arr)) / (np.max(arr) - np.min(arr))) + a
+def rescale01(arr, cmin=None, cmax=None, a=0, b=1):
+    if cmin or cmax:
+        arr = np.clip(arr, cmin, cmax)
+    return (b - a) * ((arr - np.min(arr)) / (np.max(arr) - np.min(arr))) + a
 
 
-    def plot_tricolor():
-        tricolorarray = np.zeros((4096, 4096, 3))
+def plot_tricolor(data, datb, datc, xgrid, ygrid, slate):
+    tricolorarray = np.zeros((4096, 4096, 3))
 
-        data_a = img_as_ubyte(rescale01(np.log10(data), cmin=1.2, cmax=3.9))
-        data_b = img_as_ubyte(rescale01(np.log10(datb), cmin=1.4, cmax=3.0))
-        data_c = img_as_ubyte(rescale01(np.log10(datc), cmin=0.8, cmax=2.7))
+    data_a = img_as_ubyte(rescale01(np.log10(data), cmin=1.2, cmax=3.9))
+    data_b = img_as_ubyte(rescale01(np.log10(datb), cmin=1.4, cmax=3.0))
+    data_c = img_as_ubyte(rescale01(np.log10(datc), cmin=0.8, cmax=2.7))
 
-        tricolorarray[..., 0] = data_c / np.max(data_c)
-        tricolorarray[..., 1] = data_b / np.max(data_b)
-        tricolorarray[..., 2] = data_a / np.max(data_a)
+    tricolorarray[..., 0] = data_c / np.max(data_c)
+    tricolorarray[..., 1] = data_b / np.max(data_b)
+    tricolorarray[..., 2] = data_a / np.max(data_a)
 
-        fig, ax = plt.subplots(figsize=(10, 10))
+    fig, ax = plt.subplots(figsize=(10, 10))
 
-        plt.imshow(tricolorarray, origin="lower")  # , extent = )
-        plt.contour(xgrid, ygrid, slate, colors="white", linewidths=0.5)
-        plt.savefig("tricolor.png")
-        plt.close()
-
-
-    def plot_mask(slate=slate):
-        chs = np.where(iarr > 0)
-        slate[chs] = 1
-        slate = np.array(slate, dtype=np.uint8)
-        cont, heir = cv2.findContours(slate, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        circ[:] = 0
-        r = rs / dattoarc
-        w = np.where((xgrid - center[0]) ** 2 + (ygrid - center[1]) ** 2 <= r**2)
-        circ[w] = 1.0
-
-        plt.figure(figsize=(10, 10))
-        plt.xlim(143, 4014)
-        plt.ylim(143, 4014)
-        plt.scatter(chs[1], chs[0], marker="s", s=0.0205, c="black", cmap="viridis", edgecolor="none", alpha=0.2)
-        plt.gca().set_aspect("equal", adjustable="box")
-        plt.axis("off")
-        plt.contour(xgrid, ygrid, slate, colors="black", linewidths=0.5)
-        plt.contour(xgrid, ygrid, circ, colors="black", linewidths=1.0)
-
-        plt.savefig("CH_mask_" + hedb["DATE"] + ".png", transparent=True)
-        plt.close()
+    plt.imshow(tricolorarray, origin="lower")  # , extent = )
+    plt.contour(xgrid, ygrid, slate, colors="white", linewidths=0.5)
+    plt.savefig("tricolor.png")
+    plt.close()
 
 
-    # ====stores all CH properties in a text file=====
+def plot_mask(slate, iarr, circ, rs, dattoarc, center, xgrid, ygrid, hedb):
+    chs = np.where(iarr > 0)
+    slate[chs] = 1
+    slate = np.array(slate, dtype=np.uint8)
+    # cont, heir = cv2.findContours(slate, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    plot_tricolor()
-    plot_mask()
+    circ[:] = 0
+    r = rs / dattoarc
+    w = np.where((xgrid - center[0]) ** 2 + (ygrid - center[1]) ** 2 <= r**2)
+    circ[w] = 1.0
 
-    # ====EOF====
+    plt.figure(figsize=(10, 10))
+    plt.xlim(143, 4014)
+    plt.ylim(143, 4014)
+    plt.scatter(chs[1], chs[0], marker="s", s=0.0205, c="black", cmap="viridis", edgecolor="none", alpha=0.2)
+    plt.gca().set_aspect("equal", adjustable="box")
+    plt.axis("off")
+    plt.contour(xgrid, ygrid, slate, colors="black", linewidths=0.5)
+    plt.contour(xgrid, ygrid, circ, colors="black", linewidths=1.0)
+
+    plt.savefig("CH_mask_" + hedb["DATE"] + ".png", transparent=True)
+    plt.close()
