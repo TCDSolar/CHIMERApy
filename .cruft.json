@@ -1,6 +1,6 @@
 {
   "template": "https://github.com/sunpy/package-template",
-  "commit": "d7d9c32538c7bc961c06d901847d8d4f75e4d6cf",
+  "commit": "587aad1a92d72e28b93be4bc26b4992b4f7521ae",
   "checkout": null,
   "context": {
     "cookiecutter": {
