@@ -1,7 +1,4 @@
-"""
-
-"""
-
+""" """
 
 import glob
 import sys
