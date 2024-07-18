@@ -209,7 +209,7 @@ def to_helio(image: np.array):
     hg = hpc.transform_to(sunpy.coordinates.frames.HeliographicStonyhurst)
     global csys
     csys = wcs.WCS(hedb)
-    
+
 
 to_helio(im171)
 

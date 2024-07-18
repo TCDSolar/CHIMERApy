@@ -1,4 +1,3 @@
-import glob
 import os
 import warnings
 
@@ -7,63 +6,23 @@ import numpy as np
 from astropy.io import fits
 from astropy.modeling.models import Gaussian2D
 
-from chimerapy.chimera import (
-    Bounds,
-    Xeb,
-    Xnb,
-    Xsb,
-    Xwb,
-    Yeb,
-    Ynb,
-    Ysb,
-    Ywb,
-    ang,
-    arcar,
-    arccent,
-    area,
-    cent,
-    centlat,
-    centlon,
-    chpts,
-    cont,
-    coords,
-    csys,
-    data,
-    datb,
-    datc,
-    datm,
-    dist,
-    eastl,
-    extent,
-    filter,
-    hg,
-    ins_prop,
-    mB,
-    mBneg,
-    mBpos,
-    npix,
-    pos,
-    remove_neg,
-    rescale_aia,
-    rescale_hmi,
-    set_contour,
-    sort,
-    threshold,
-    truarcar,
-    trummar,
-    trupixar,
-    westl,
-    width,
-    xpos,
-    ypos,
-)
 from chimerapy.chimera import *
+from chimerapy.chimera import (Bounds, Xeb, Xnb, Xsb, Xwb, Yeb, Ynb, Ysb, Ywb,
+                               ang, arcar, arccent, area, cent, centlat,
+                               centlon, chpts, cont, coords, csys, data, datb,
+                               datc, datm, dist, eastl, extent, filter, hg,
+                               ins_prop, mB, mBneg, mBpos, npix, pos,
+                               remove_neg, rescale_aia, rescale_hmi,
+                               set_contour, sort, threshold, truarcar, trummar,
+                               trupixar, westl, width, xpos, ypos)
 
-INPUT_FILES = {"aia171": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00171_fd_20160922_103010.fts.gz",
-"aia193": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00193_fd_20160922_103041.fts.gz",
-"aia211": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00211_fd_20160922_103046.fts.gz",
-"hmi_mag": "https://solarmonitor.org/data/2016/09/22/fits/shmi/shmi_maglc_fd_20160922_094640.fts.gz",
+INPUT_FILES = {
+    "aia171": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00171_fd_20160922_103010.fts.gz",
+    "aia193": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00193_fd_20160922_103041.fts.gz",
+    "aia211": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00211_fd_20160922_103046.fts.gz",
+    "hmi_mag": "https://solarmonitor.org/data/2016/09/22/fits/shmi/shmi_maglc_fd_20160922_094640.fts.gz",
 }
+
 
 def img_present():
     assert im171 != [] or im193 != [] or im211 != [] or imhmi != [], "Not all required files present"
@@ -365,7 +324,7 @@ def test_fill_polygon():
 
     iarr = np.array([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 0], [0, 0, 0, 0, 0]])
 
-    cont = np.array([[[[1, 2], [1, 3], [2, 3], [2, 2]]]])  
+    cont = np.array([[[[1, 2], [1, 3], [2, 3], [2, 2]]]])
 
     slate = np.array(iarr)
 
@@ -384,14 +343,12 @@ def test_fill_polygon():
         ]
         > 0
     ):
-
         mahotas.polygon.fill_polygon(polygon_vertices, slate)
-
 
         print("After filling polygon:")
         print(slate)
         iarr[np.where(slate == 1)] = 0
-        slate[:] = 0  
+        slate[:] = 0
 
     assert np.array_equal(
         slate,
@@ -421,8 +378,8 @@ def test_magpol():
     assert npix[0][np.where(npix[0] == 0)] != 0, "Npix[0] should not be equal to zero at its zeros"
     assert npix[1] != 0, "Npix[1] should not be equal to 0"
     npixtest = [
-        np.array([2, -1, 0, 3, -2, 1]),  
-        np.array([1, -1, 0, 2, -2, 1]),  
+        np.array([2, -1, 0, 3, -2, 1]),
+        np.array([1, -1, 0, 2, -2, 1]),
     ]
     wh1_expected = np.where(npixtest[1] > 0)
     wh1_actual = np.where(npixtest[1] > 0)
