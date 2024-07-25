@@ -9,17 +9,19 @@ import sunpy
 import sunpy.map
 from astropy import wcs
 from astropy.modeling.models import Gaussian2D
-from astropy.visualization import astropy_mpl_style
+from astropy.wcs import WCS
 from skimage.util import img_as_ubyte
 from sunpy.coordinates import (HeliographicStonyhurst,
                                propagate_with_solar_surface)
 from sunpy.map import Map, all_coordinates_from_map
+from sunpy.coordinates import frames
+
 
 INPUT_FILES = {
-    "aia171": "http://jsoc.stanford.edu/data/aia/synoptic/2016/09/22/H1000/AIA20160922_1030_0171.fits",
-    "aia193": "http://jsoc.stanford.edu/data/aia/synoptic/2016/09/22/H1000/AIA20160922_1030_0193.fits",
-    "aia211": "http://jsoc.stanford.edu/data/aia/synoptic/2016/09/22/H1000/AIA20160922_1030_0211.fits",
-    "hmi_mag": "http://jsoc.stanford.edu/data/hmi/fits/2016/09/22/hmi.M_720s.20160922_010000_TAI.fits",
+    "aia171": "http://jsoc.stanford.edu/data/aia/synoptic/2024/01/31/H1000/AIA20240131_1000_0171.fits",
+    "aia193": "http://jsoc.stanford.edu/data/aia/synoptic/2024/01/31/H1000/AIA20240131_1000_0193.fits",
+    "aia211": "http://jsoc.stanford.edu/data/aia/synoptic/2024/01/31/H1000/AIA20240131_1000_0211.fits",
+    "hmi_mag": "http://jsoc.stanford.edu/data/hmi/fits/2024/01/31/hmi.M_720s.20240131_010000_TAI.fits",
 }
 
 im171 = Map(INPUT_FILES["aia171"])
@@ -27,6 +29,10 @@ im193 = Map(INPUT_FILES["aia193"])
 im211 = Map(INPUT_FILES["aia211"])
 imhmi = Map(INPUT_FILES["hmi_mag"])
 
+im171.plot
+im193.plot
+im211.plot
+imhmi.plot
 
 def reproject_diff_rot(target_wcs: wcs.wcs.WCS, input_map: sunpy.map.Map):
     """
@@ -42,21 +48,21 @@ def reproject_diff_rot(target_wcs: wcs.wcs.WCS, input_map: sunpy.map.Map):
     array: 'np.array'
 
     """
-    with propagate_with_solar_surface():
-        amap = input_map.reproject_to(target_wcs.wcs)
-        new_x_scale = amap.scale[0].to(u.arcsec / u.pixel).value
-        new_y_scale = amap.scale[1].to(u.arcsec / u.pixel).value
-        amap.meta["cdelt1"] = new_x_scale
-        amap.meta["cdelt2"] = new_y_scale
-        amap.meta["cunit1"] = "arcsec"
-        amap.meta["cunit2"] = "arcsec"
-        return amap
+    with frames.Helioprojective.assume_spherical_screen(target_wcs.observer_coordinate):
+        with propagate_with_solar_surface():
+            amap = input_map.reproject_to(target_wcs.wcs)
+            new_x_scale = amap.scale[0].to(u.arcsec / u.pixel).value
+            new_y_scale = amap.scale[1].to(u.arcsec / u.pixel).value
+            amap.meta["cdelt1"] = new_x_scale
+            amap.meta["cdelt2"] = new_y_scale
+            amap.meta["cunit1"] = "arcsec"
+            amap.meta["cunit2"] = "arcsec"
+            return amap
 
 
 im193 = reproject_diff_rot(im171, im193)
 im211 = reproject_diff_rot(im171, im211)
 imhmi = reproject_diff_rot(im171, imhmi)
-
 
 def filter(map1: np.array, map2: np.array, map3: np.array):
     """
@@ -84,10 +90,13 @@ def filter(map1: np.array, map2: np.array, map3: np.array):
 
 im171, im193, im211 = filter(im171, im193, im211)
 
+
+
+
 def shape(map1: sunpy.map.Map, map2: sunpy.map.Map, map3: sunpy.map.Map):
     """
     defines the shape of the arrays as "s" and "rs" as the solar radius
-    
+
     Parameters
     ----------
     map1: 'sunpy.map.Map'
@@ -99,9 +108,9 @@ def shape(map1: sunpy.map.Map, map2: sunpy.map.Map, map3: sunpy.map.Map):
     s: 'tuple'
     rs: 'astropy.units.quantity.Quantity'
     rs_pixels: 'astropy.units.quantity.Quantity'
-    
+
     """
-    
+
     im171, im193, im211 = filter(map1, map2, map3)
     # defines the shape of the arrays as "s" and "rs" as the solar radius
     s = np.shape(im171.data)
@@ -109,6 +118,7 @@ def shape(map1: sunpy.map.Map, map2: sunpy.map.Map, map3: sunpy.map.Map):
     print(rs)
     rs_pixels = im171.rsun_obs / im171.scale[0]
     return s, rs, rs_pixels
+
 
 s, rs, rs_pixels = shape(im171, im193, im211)
 
@@ -126,7 +136,7 @@ def pix_arc(amap: sunpy.map.Map):
     """
     dattoarc = amap.scale[0].value
     s = amap.dimensions
-    conver = (s.x/2) * amap.scale[0].value / amap.meta['cdelt1'], (s.y / 2)
+    conver = (s.x / 2) * amap.scale[0].value / amap.meta["cdelt1"], (s.y / 2)
     convermul = dattoarc / amap.meta["cdelt1"]
     return dattoarc, conver, convermul
 
@@ -154,7 +164,9 @@ def to_helio(amap: sunpy.map.Map):
     """
     hpc = all_coordinates_from_map(amap)
     hg = hpc.transform_to(sunpy.coordinates.frames.HeliographicStonyhurst)
-    csys = wcs.WCS(dict(amap.meta))
+    # Filter the header to contain only ASCII characters and exclude specified keys
+    filtered_header = {key: value for key, value in amap.meta.items() if key not in ['keycomments', 'comment']}
+    csys = wcs.WCS(dict(filtered_header))
     return hpc, hg, csys
 
 
@@ -174,13 +186,13 @@ xgrid, ygrid = np.meshgrid(np.arange(s[0]), np.arange(s[1]))
 center = [int(s[1] / 2.0), int(s[1] / 2.0)]
 w = np.where((xgrid - center[0]) ** 2 + (ygrid - center[1]) ** 2 > r**2)
 y, x = np.mgrid[0:1024, 0:1024]
-width = (2000 * u.arcsec)
+width = 2000 * u.arcsec
 garr = Gaussian2D(
     1,
     im171.reference_pixel.x.to_value(u.pix),
     im171.reference_pixel.y.to_value(u.pix),
-    width / im171.scale[0],
-    width / im171.scale[1],
+    width.value / im171.scale[0].value,
+    width.value / im171.scale[1].value,
 )(x, y)
 garr[w] = 1.0
 
@@ -393,7 +405,7 @@ def misid(can: np.array, cir: np.array, xgir: np.array, ygir: np.array, thresh_r
     return r, w, cir, cand
 
 
-r, w, cir, cand = misid(cand, circ, xgrid, ygrid, (s[1] / 2.0) - 100)
+r, w, cir_off, cand_off = misid(cand, circ, xgrid, ygrid, (s[1] / 2.0) - 100)
 
 
 def on_off(cir: np.array, can: np.array):
@@ -421,7 +433,7 @@ def on_off(cir: np.array, can: np.array):
     return can
 
 
-cand = on_off(circ, cand)
+#cand = on_off(circ, cand)
 
 
 def contour_data(cand: np.array):
@@ -463,7 +475,7 @@ def sort(cont: tuple):
     sizes: 'list'
 
     """
-    sizes = []
+    sizes = np.array([])
     for i in range(len(cont)):
         sizes = np.append(sizes, len(cont[i]))
     reord = sizes.ravel().argsort()[::-1]
@@ -534,33 +546,31 @@ def coords(i, csys, cont):
     Ysb: 'np.array'
     Xsb: 'np.array'
     """
-    global Ywb, Xwb, Yeb, Xeb, Ynb, Xnb, Ysb, Xsb
-    Ywb, Xwb = csys.all_pix2world(
-        cont[i][np.where(cont[i][:, 0, 0] == np.max(cont[i][:, 0, 0]))[0][0], 0, 1],
-        np.max(cont[i][:, 0, 0]),
-        0,
-    )
-    Yeb, Xeb = csys.all_pix2world(
-        cont[i][np.where(cont[i][:, 0, 0] == np.min(cont[i][:, 0, 0]))[0][0], 0, 1],
-        np.min(cont[i][:, 0, 0]),
-        0,
-    )
-    Ynb, Xnb = csys.all_pix2world(
-        np.max(cont[i][:, 0, 1]),
-        cont[i][np.where(cont[i][:, 0, 1] == np.max(cont[i][:, 0, 1]))[0][0], 0, 0],
-        0,
-    )
-    Ysb, Xsb = csys.all_pix2world(
-        np.min(cont[i][:, 0, 1]),
-        cont[i][np.where(cont[i][:, 0, 1] == np.min(cont[i][:, 0, 1]))[0][0], 0, 0],
-        0,
-    )
+    
+    #exctracting coordinates for contours
+    contour = cont[i]
+    x_coords = contour[:, 0, 0]
+    y_coords = contour[:, 0, 1]
 
+    #finding max and min of x coordinates
+    max_x  = np.argmax(x_coords)
+    min_x = np.argmin(x_coords)
+
+    #finding manx and min of y coordinates
+    max_y = np.argmax(y_coords)
+    min_y = np.argmin(y_coords)
+
+    #Pixel coordinates to world coordinates (in arcsec)
+    Ywb, Xwb = (csys.pixel_to_world(x_coords[max_x], y_coords[max_x])).Tx, (csys.pixel_to_world(x_coords[max_x], y_coords[max_x])).Ty
+    Yeb, Xeb = (csys.pixel_to_world(x_coords[min_x], y_coords[min_x])).Tx, (csys.pixel_to_world(x_coords[min_x], y_coords[min_x])).Ty 
+    Ynb, Xnb = (csys.pixel_to_world(y_coords[max_y], x_coords[max_y])).Tx, (csys.pixel_to_world(y_coords[max_y], x_coords[max_y])).Ty
+    Ysb, Xsb = (csys.pixel_to_world(y_coords[min_y], x_coords[min_y])).Tx, (csys.pixel_to_world(y_coords[min_y], x_coords[min_y])).Ty
+    
     return Ywb, Xwb, Yeb, Xeb, Ynb, Xnb, Ysb, Xsb
 
 
 def ins_prop(
-    datm,
+    imhmi,
     rs,
     ident,
     props,
@@ -591,7 +601,7 @@ def ins_prop(
 
     Parameters
     ----------
-    datm: 'np.array'
+    imhmi: 'np.array'
     rs: 'float'
     ident: 'int'
     props: 'np.array'
@@ -659,9 +669,9 @@ def ins_prop(
     props[18, ident + 1] = str(np.round(mBneg, 1))
     props[19, ident + 1] = str(np.round(np.max(npix[1]), 1))
     props[20, ident + 1] = str(np.round(np.min(npix[1]), 1))
-    tbpos = np.sum(datm[pos[:, 0], pos[:, 1]][np.where(datm[pos[:, 0], pos[:, 1]] > 0)])
+    tbpos = np.sum(imhmi.data[pos[:, 0], pos[:, 1]][np.where(imhmi.data[pos[:, 0], pos[:, 1]] > 0)])
     props[21, ident + 1] = f"{tbpos:.1e}"
-    tbneg = np.sum(datm[pos[:, 0], pos[:, 1]][np.where(datm[pos[:, 0], pos[:, 1]] < 0)])
+    tbneg = np.sum(imhmi.data[pos[:, 0], pos[:, 1]][np.where(imhmi.data[pos[:, 0], pos[:, 1]] < 0)])
     props[22, ident + 1] = f"{tbneg:.1e}"
     props[23, ident + 1] = f"{mB*trummar*1e+16:.1e}"
     props[24, ident + 1] = f"{mBpos*trummar*1e+16:.1e}"
@@ -672,7 +682,16 @@ def ins_prop(
 
 for i in range(len(cont)):
     x = np.append(x, len(cont[i]))
-
+    #exctracting coordinates for contours
+    contour = cont[i]
+    lengths = []
+    # Iterate through each element in cont and calculate its length
+    for elem in cont:
+        lengths.append(len(elem))
+    x_coords = contour[:, 0, 0]
+    y_coords = contour[:, 0, 1]
+    max_x = np.max(x_coords)
+    max_y = np.max(y_coords)
     """only takes values of minimum surface length and calculates area"""
 
     if len(cont[i]) <= 100:
@@ -686,24 +705,11 @@ for i in range(len(cont)):
         """finds centroid"""
 
         chpts = len(cont[i])
-        cent = [np.mean(cont[i][:, 0, 0]), np.mean(cont[i][:, 0, 1])]
+        cent = [np.mean(x_coords), np.mean(y_coords)]
 
         """remove quiet sun regions encompassed by coronal holes"""
-        if (
-            cand[
-                np.max(cont[i][:, 0, 0]) + 1,
-                cont[i][np.where(cont[i][:, 0, 0] == np.max(cont[i][:, 0, 0]))[0][0], 0, 1],
-            ]
-            > 0
-        ) and (
-            iarr[
-                np.max(cont[i][:, 0, 0]) + 1,
-                cont[i][np.where(cont[i][:, 0, 0] == np.max(cont[i][:, 0, 0]))[0][0], 0, 1],
-            ]
-            > 0
-        ):
-            mahotas.polygon.fill_polygon(np.array(list(zip(cont[i][:, 0, 1], cont[i][:, 0, 0]))), slate)
-            print(slate)
+        if (cand[max_x + 1, contour[np.where(x_coords == max_x)[0][0], 0, 1]] > 0) and (iarr[max_x + 1, cont[i][np.where(x_coords == max_x)[0][0], 0, 1]] > 0):
+            mahotas.polygon.fill_polygon(np.array(list(zip(y_coords, x_coords))), slate)
             iarr[np.where(slate == 1)] = 0
             slate[:] = 0
 
@@ -714,29 +720,27 @@ for i in range(len(cont)):
 
             """classifies off limb CH regions"""
 
-            if (((arccent[0] ** 2) + (arccent[1] ** 2)) > (rs**2)) or (
-                np.sum(np.array(csys.all_pix2world(cont[i][0, 0, 0], cont[i][0, 0, 1], 0)) ** 2) > (rs**2)
+            if (((arccent[0] ** 2) + (arccent[1] ** 2)) > (rs.value**2)) or (
+                np.sum(np.array(csys.all_pix2world(x_coords, y_coords, 0)) ** 2) > (rs.value**2)
             ):
-                mahotas.polygon.fill_polygon(np.array(list(zip(cont[i][:, 0, 1], cont[i][:, 0, 0]))), offarr)
+                mahotas.polygon.fill_polygon(np.array(list(zip(y_coords, x_coords))), offarr)
             else:
                 """classifies on disk coronal holes"""
 
-                mahotas.polygon.fill_polygon(np.array(list(zip(cont[i][:, 0, 1], cont[i][:, 0, 0]))), slate)
+                mahotas.polygon.fill_polygon(np.array(list(zip(y_coords, x_coords))), slate)
                 poslin = np.where(slate == 1)
-                slate[:] = 0
                 print(poslin)
-
+                slate[:] = 0
                 """create an array for magnetic polarity"""
-
-                pos = np.zeros((len(poslin[0]), 2), dtype=np.uint)
-                pos[:, 0] = np.array((poslin[0] - (s[0] / 2)) * convermul + (s[1] / 2), dtype=np.uint)
-                pos[:, 1] = np.array((poslin[1] - (s[0] / 2)) * convermul + (s[1] / 2), dtype=np.uint)
+                pos_x = np.array((poslin[0] - (s[0] / 2)) * convermul + (s[1] / 2), dtype=np.uint)
+                pos_y = np.array((poslin[1] - (s[0] / 2)) * convermul + (s[1] / 2), dtype=np.uint)
+                pos = np.column_stack((pos_x, pos_y))
                 npix = list(
                     np.histogram(
-                        datm[pos[:, 0], pos[:, 1]],
+                        imhmi.data[pos_x, pos_y],
                         bins=np.arange(
-                            np.round(np.min(datm[pos[:, 0], pos[:, 1]])) - 0.5,
-                            np.round(np.max(datm[pos[:, 0], pos[:, 1]])) + 0.6,
+                            np.round(np.min(imhmi.data[pos_x, pos_y])) - 0.5,
+                            np.round(np.max(imhmi.data[pos_x, pos_y])) + 0.6,
                             1,
                         ),
                     )
@@ -756,7 +760,7 @@ for i in range(len(cont)):
                 ):
                     continue
                 if (
-                    np.absolute(np.mean(datm[pos[:, 0], pos[:, 1]])) < garr[int(cent[0]), int(cent[1])]
+                    np.absolute(np.mean(imhmi.data[pos[:, 0], pos[:, 1]])) < garr[int(cent[0]), int(cent[1])]
                     and arcar < 40000
                 ):
                     continue
@@ -786,7 +790,7 @@ for i in range(len(cont)):
 
                 """caluclate the mean magnetic field"""
 
-                mB = np.mean(datm[pos[:, 0], pos[:, 1]])
+                mB = np.mean(imhmi.data[pos[:, 0], pos[:, 1]])
                 mBpos = np.sum(npix[0][wh1] * npix[1][wh1]) / np.sum(npix[0][wh1])
                 mBneg = np.sum(npix[0][wh2] * npix[1][wh2]) / np.sum(npix[0][wh2])
 
@@ -817,7 +821,7 @@ for i in range(len(cont)):
                 """insertions of CH properties into property array"""
 
                 ins_prop(
-                    datm,
+                    imhmi,
                     rs,
                     ident,
                     props,
@@ -889,9 +893,9 @@ def plot_tricolor():
 
     tricolorarray = np.zeros((1024, 1024, 3))
 
-    data_a = img_as_ubyte(rescale01(np.log10(data), cmin=1.2, cmax=3.9))
-    data_b = img_as_ubyte(rescale01(np.log10(datb), cmin=1.4, cmax=3.0))
-    data_c = img_as_ubyte(rescale01(np.log10(datc), cmin=0.8, cmax=2.7))
+    data_a = img_as_ubyte(rescale01(np.log10(im171.data), cmin=1.2, cmax=3.9))
+    data_b = img_as_ubyte(rescale01(np.log10(im193.data), cmin=1.4, cmax=3.0))
+    data_c = img_as_ubyte(rescale01(np.log10(imhmi.data), cmin=0.8, cmax=2.7))
 
     tricolorarray[..., 0] = data_c / np.max(data_c)
     tricolorarray[..., 1] = data_b / np.max(data_b)
@@ -926,7 +930,7 @@ def plot_mask(slate=slate):
 
     circ[:] = 0
     r = rs / dattoarc
-    w = np.where((xgrid - center[0]) ** 2 + (ygrid - center[1]) ** 2 <= r**2)
+    w = np.where((xgrid - center[0]) ** 2 + (ygrid - center[1]) ** 2 <= r.value**2)
     circ[w] = 1.0
 
     plt.figure(figsize=(10, 10))
@@ -938,20 +942,16 @@ def plot_mask(slate=slate):
     plt.contour(xgrid, ygrid, slate, colors="black", linewidths=0.5)
     plt.contour(xgrid, ygrid, circ, colors="black", linewidths=1.0)
 
-    plt.savefig("CH_mask_" + hedb["DATE"] + ".png", transparent=True)
+    plt.savefig("CH_mask_" + im193.meta["date-obs"] + ".png", transparent=True)
 
 
 plot_tricolor()
 plot_mask()
 
-if __name__ == "__main__":
-    import_functions(
-        INPUT_FILES["aia171"], INPUT_FILES["aia193"], INPUT_FILES["aia211"], INPUT_FILES["hmi_mag"]
-    )
 
-'''
+"""
 Document detailing process summary and all functions/variables:
 
 https://docs.google.com/document/d/1V5LkZq_AAHdTrGsnCl2hoYhm_fvyjfuzODiEHbt4ebo/edit?usp=sharing
 
-'''
+"""
