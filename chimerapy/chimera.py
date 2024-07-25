@@ -1,4 +1,5 @@
 """Package for Coronal Hole Identification Algorithm"""
+
 import glob
 import sys
 

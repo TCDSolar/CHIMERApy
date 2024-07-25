@@ -9,13 +9,10 @@ import sunpy
 import sunpy.map
 from astropy import wcs
 from astropy.modeling.models import Gaussian2D
-from astropy.wcs import WCS
 from skimage.util import img_as_ubyte
-from sunpy.coordinates import (HeliographicStonyhurst,
+from sunpy.coordinates import (HeliographicStonyhurst, frames,
                                propagate_with_solar_surface)
 from sunpy.map import Map, all_coordinates_from_map
-from sunpy.coordinates import frames
-
 
 INPUT_FILES = {
     "aia171": "http://jsoc.stanford.edu/data/aia/synoptic/2024/01/31/H1000/AIA20240131_1000_0171.fits",
@@ -33,6 +30,7 @@ im171.plot
 im193.plot
 im211.plot
 imhmi.plot
+
 
 def reproject_diff_rot(target_wcs: wcs.wcs.WCS, input_map: sunpy.map.Map):
     """
@@ -64,6 +62,7 @@ im193 = reproject_diff_rot(im171, im193)
 im211 = reproject_diff_rot(im171, im211)
 imhmi = reproject_diff_rot(im171, imhmi)
 
+
 def filter(map1: np.array, map2: np.array, map3: np.array):
     """
     Removes negative values from each map by setting each equal to zero
@@ -89,8 +88,6 @@ def filter(map1: np.array, map2: np.array, map3: np.array):
 
 
 im171, im193, im211 = filter(im171, im193, im211)
-
-
 
 
 def shape(map1: sunpy.map.Map, map2: sunpy.map.Map, map3: sunpy.map.Map):
@@ -165,7 +162,9 @@ def to_helio(amap: sunpy.map.Map):
     hpc = all_coordinates_from_map(amap)
     hg = hpc.transform_to(sunpy.coordinates.frames.HeliographicStonyhurst)
     # Filter the header to contain only ASCII characters and exclude specified keys
-    filtered_header = {key: value for key, value in amap.meta.items() if key not in ['keycomments', 'comment']}
+    filtered_header = {
+        key: value for key, value in amap.meta.items() if key not in ["keycomments", "comment"]
+    }
     csys = wcs.WCS(dict(filtered_header))
     return hpc, hg, csys
 
@@ -433,7 +432,7 @@ def on_off(cir: np.array, can: np.array):
     return can
 
 
-#cand = on_off(circ, cand)
+# cand = on_off(circ, cand)
 
 
 def contour_data(cand: np.array):
@@ -546,26 +545,38 @@ def coords(i, csys, cont):
     Ysb: 'np.array'
     Xsb: 'np.array'
     """
-    
-    #exctracting coordinates for contours
+
+    # exctracting coordinates for contours
     contour = cont[i]
     x_coords = contour[:, 0, 0]
     y_coords = contour[:, 0, 1]
 
-    #finding max and min of x coordinates
-    max_x  = np.argmax(x_coords)
+    # finding max and min of x coordinates
+    max_x = np.argmax(x_coords)
     min_x = np.argmin(x_coords)
 
-    #finding manx and min of y coordinates
+    # finding manx and min of y coordinates
     max_y = np.argmax(y_coords)
     min_y = np.argmin(y_coords)
 
-    #Pixel coordinates to world coordinates (in arcsec)
-    Ywb, Xwb = (csys.pixel_to_world(x_coords[max_x], y_coords[max_x])).Tx, (csys.pixel_to_world(x_coords[max_x], y_coords[max_x])).Ty
-    Yeb, Xeb = (csys.pixel_to_world(x_coords[min_x], y_coords[min_x])).Tx, (csys.pixel_to_world(x_coords[min_x], y_coords[min_x])).Ty 
-    Ynb, Xnb = (csys.pixel_to_world(y_coords[max_y], x_coords[max_y])).Tx, (csys.pixel_to_world(y_coords[max_y], x_coords[max_y])).Ty
-    Ysb, Xsb = (csys.pixel_to_world(y_coords[min_y], x_coords[min_y])).Tx, (csys.pixel_to_world(y_coords[min_y], x_coords[min_y])).Ty
-    
+    # Pixel coordinates to world coordinates (in arcsec)
+    Ywb, Xwb = (
+        (csys.pixel_to_world(x_coords[max_x], y_coords[max_x])).Tx,
+        (csys.pixel_to_world(x_coords[max_x], y_coords[max_x])).Ty,
+    )
+    Yeb, Xeb = (
+        (csys.pixel_to_world(x_coords[min_x], y_coords[min_x])).Tx,
+        (csys.pixel_to_world(x_coords[min_x], y_coords[min_x])).Ty,
+    )
+    Ynb, Xnb = (
+        (csys.pixel_to_world(y_coords[max_y], x_coords[max_y])).Tx,
+        (csys.pixel_to_world(y_coords[max_y], x_coords[max_y])).Ty,
+    )
+    Ysb, Xsb = (
+        (csys.pixel_to_world(y_coords[min_y], x_coords[min_y])).Tx,
+        (csys.pixel_to_world(y_coords[min_y], x_coords[min_y])).Ty,
+    )
+
     return Ywb, Xwb, Yeb, Xeb, Ynb, Xnb, Ysb, Xsb
 
 
@@ -682,7 +693,7 @@ def ins_prop(
 
 for i in range(len(cont)):
     x = np.append(x, len(cont[i]))
-    #exctracting coordinates for contours
+    # exctracting coordinates for contours
     contour = cont[i]
     lengths = []
     # Iterate through each element in cont and calculate its length
@@ -708,7 +719,9 @@ for i in range(len(cont)):
         cent = [np.mean(x_coords), np.mean(y_coords)]
 
         """remove quiet sun regions encompassed by coronal holes"""
-        if (cand[max_x + 1, contour[np.where(x_coords == max_x)[0][0], 0, 1]] > 0) and (iarr[max_x + 1, cont[i][np.where(x_coords == max_x)[0][0], 0, 1]] > 0):
+        if (cand[max_x + 1, contour[np.where(x_coords == max_x)[0][0], 0, 1]] > 0) and (
+            iarr[max_x + 1, cont[i][np.where(x_coords == max_x)[0][0], 0, 1]] > 0
+        ):
             mahotas.polygon.fill_polygon(np.array(list(zip(y_coords, x_coords))), slate)
             iarr[np.where(slate == 1)] = 0
             slate[:] = 0
