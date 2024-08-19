@@ -13,35 +13,30 @@ Srart of with imports
 import copy
 
 import numpy as np
+import astropy.units as u
+from astropy.coordinates import SkyCoord
 from astropy.visualization import make_lupton_rgb
 from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm
-from sunpy.map import Map, all_coordinates_from_map
+from sunpy.map import Map, all_coordinates_from_map, pixelate_coord_path, sample_at_coords
+
 
 #####################################################
 #
-# Load the Data
-# -------------------------
-# * Normalise by exposure time
-# * Set off disk pixels to nans
-#
-
-m94 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0094.fits")
-m131 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0131.fits")
-m171 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0171.fits")
-m193 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0193.fits")
-m211 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0211.fits")
-m335 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0335.fits")
-
-m171_orig = copy.deepcopy(m171)
-m193_orig = copy.deepcopy(m193)
-m211_orig = copy.deepcopy(m211)
-
-#####################################################
-#
-# Figure 1
+# Figure 2
 # --------
 #
+# .. note::
+#     Figures 2 and 3 use data from a different date compared to later figures.
+#
+
+m94 =  Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0094.fits")
+m131 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0131.fits")
+m171 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0171.fits")
+m193 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0193.fits")
+m211 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0211.fits")
+m335 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0335.fits")
+
 fig, axes = plt.subplot_mosaic(
     [["131", "171"], ["193", "211"], ["335", "94"]],
     layout="constrained",
@@ -55,22 +50,54 @@ fig, axes = plt.subplot_mosaic(
         "94": {"projection": m94},
     },
 )
-m131.plot(axes=axes["131"])
-m171.plot(axes=axes["171"])
 
-m193.plot(axes=axes["193"])
-m211.plot(axes=axes["211"])
+for m in [m131, m171, m193, m211, m335, m94]:
+    wave_str = f"{m.wavelength.value:0.0f}"
+    line_coords = SkyCoord([-200, 0], [-100, -100], unit=(u.arcsec, u.arcsec),
+                       frame=m.coordinate_frame)
+    m.plot(axes=axes[wave_str], clip_interval=(1, 99)*u.percent)
+    axes[wave_str].plot_coord(line_coords, 'w', linewidth=1.5)
 
-m335.plot(axes=axes["335"])
-m94.plot(axes=axes["94"])
+#####################################################
+#
+# Figure 3
+# --------
+#
 
-del m94, m131, m335
+fig, axes = plt.subplot_mosaic(
+    [["131"], ["171"], ["193"], ["211"], ["335"], ['94']],
+    layout="constrained",
+    figsize=(6, 9),
+    sharex=True
+)
+for m in [m131, m171, m193, m211, m335, m94]:
+    line_coords = SkyCoord([-200, 0], [-100, -100], unit=(u.arcsec, u.arcsec),
+                           frame=m.coordinate_frame)
+    x, y = m.world_to_pixel(line_coords)
+    xmin, xmax = np.round(x).value.astype(int)
+    ymin, ymax = np.round(y).value.astype(int)
+    intensity_coords = pixelate_coord_path(m, line_coords, bresenham=True)
+    intensity1 = sample_at_coords(m, intensity_coords)
+    intensity2 = m.data[ymin, xmin:xmax+1]
+    contrast = (intensity2.max() - intensity2.min()) / (intensity2.max() + intensity2.min())
+    axes[format(m.wavelength.value, '0.0f')].plot(intensity_coords.Tx, intensity1)
+    axes[format(m.wavelength.value, '0.0f')].plot(intensity_coords.Tx, intensity2, '--')
+    axes[format(m.wavelength.value, '0.0f')].set_title(f'{m.wavelength: 0.0f}, Contrast: {contrast:0.2f}')
+
 
 #####################################################
 #
 # Figure 4
 # --------
 #
+
+m171 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0171.fits")
+m193 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0193.fits")
+m211 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0211.fits")
+
+m171_orig = copy.deepcopy(m171)
+m193_orig = copy.deepcopy(m193)
+m211_orig = copy.deepcopy(m211)
 
 # Since the data are taken at similar times neglect any coordinate changes so just use 171 maps coordinates
 coords = all_coordinates_from_map(m171)
@@ -134,11 +161,6 @@ axes["hot_hist"].set_ylim(0, 100)
 axes["hot_hist"].set_facecolor("k")
 axes["hot_hist"].contour(hot_counts.T, np.linspace(1e-5, 1e-3, 5), cmap="Greys", extent=(0, 300, 0, 300))
 
-#####################################################
-#
-# Figure 3
-# --------
-
 
 #####################################################
 #
@@ -147,8 +169,9 @@ axes["hot_hist"].contour(hot_counts.T, np.linspace(1e-5, 1e-3, 5), cmap="Greys",
 #
 # Essentially the same as Fig 4 left colum in log scale version of right column.
 #
-# .. note
-#    Haven't actually done the fit as the number later on don't seem to match?
+# .. note::
+#     The fit lines are currently arbitrary as numbers are not stated in the paper need to add fitting
+#
 
 xx = np.linspace(0, 300, 500)
 
@@ -248,7 +271,7 @@ axes["hot_hist"].plot(xx, xx**0.7, "w")
 # --------
 #
 fig, axes = plt.subplot_mosaic(
-    [["tri", "193_171"], ["211_171", "211_193"]], layout="constrained", figsize=(6, 3)
+    [["tri", "193_171"], ["211_171", "211_193"]], layout="constrained", figsize=(6, 6)
 )
 
 d171_clipped = np.clip(np.log10(m171.data), 1.2, 3.9)
@@ -287,3 +310,22 @@ fig, axes = plt.subplot_mosaic([["tri", "comb_mask"]], layout="constrained", fig
 
 axes["tri"].imshow(tri_color_img, origin="lower")
 axes["comb_mask"].imshow(mask_171_193 * mask_171_211 * mask_211_193, origin="lower")
+
+
+#####################################################
+#
+# Figure 8
+# --------
+#
+
+mask_map = Map(((mask_171_193 * mask_171_211 * mask_211_193).astype(int), m171.meta))
+contours = mask_map.contour(0.5/u.s)
+contours = sorted(contours, key=lambda x: x.size, reverse=True)
+
+fig, axes = plt.subplot_mosaic([['seg']], layout="constrained", figsize=(6, 3), subplot_kw={'projection': m171})
+m171.plot(axes=axes['seg'])
+axes['seg'].imshow(tri_color_img)
+
+# For the moment just plot to top 5 contours based on "size" for contour
+for contour in contours[:6]:
+    axes["seg"].plot_coord(contour, color='w')
