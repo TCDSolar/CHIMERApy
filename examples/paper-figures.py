@@ -12,14 +12,14 @@ Srart of with imports
 
 import copy
 
-import numpy as np
 import astropy.units as u
+import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy.visualization import make_lupton_rgb
 from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm
-from sunpy.map import Map, all_coordinates_from_map, pixelate_coord_path, sample_at_coords
-
+from sunpy.map import (Map, all_coordinates_from_map, pixelate_coord_path,
+                       sample_at_coords)
 
 #####################################################
 #
@@ -30,7 +30,7 @@ from sunpy.map import Map, all_coordinates_from_map, pixelate_coord_path, sample
 #     Figures 2 and 3 use data from a different date compared to later figures.
 #
 
-m94 =  Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0094.fits")
+m94 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0094.fits")
 m131 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0131.fits")
 m171 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0171.fits")
 m193 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0193.fits")
@@ -53,10 +53,9 @@ fig, axes = plt.subplot_mosaic(
 
 for m in [m131, m171, m193, m211, m335, m94]:
     wave_str = f"{m.wavelength.value:0.0f}"
-    line_coords = SkyCoord([-200, 0], [-100, -100], unit=(u.arcsec, u.arcsec),
-                       frame=m.coordinate_frame)
-    m.plot(axes=axes[wave_str], clip_interval=(1, 99)*u.percent)
-    axes[wave_str].plot_coord(line_coords, 'w', linewidth=1.5)
+    line_coords = SkyCoord([-200, 0], [-100, -100], unit=(u.arcsec, u.arcsec), frame=m.coordinate_frame)
+    m.plot(axes=axes[wave_str], clip_interval=(1, 99) * u.percent)
+    axes[wave_str].plot_coord(line_coords, "w", linewidth=1.5)
 
 #####################################################
 #
@@ -65,24 +64,20 @@ for m in [m131, m171, m193, m211, m335, m94]:
 #
 
 fig, axes = plt.subplot_mosaic(
-    [["131"], ["171"], ["193"], ["211"], ["335"], ['94']],
-    layout="constrained",
-    figsize=(6, 9),
-    sharex=True
+    [["131"], ["171"], ["193"], ["211"], ["335"], ["94"]], layout="constrained", figsize=(6, 9), sharex=True
 )
 for m in [m131, m171, m193, m211, m335, m94]:
-    line_coords = SkyCoord([-200, 0], [-100, -100], unit=(u.arcsec, u.arcsec),
-                           frame=m.coordinate_frame)
+    line_coords = SkyCoord([-200, 0], [-100, -100], unit=(u.arcsec, u.arcsec), frame=m.coordinate_frame)
     x, y = m.world_to_pixel(line_coords)
     xmin, xmax = np.round(x).value.astype(int)
     ymin, ymax = np.round(y).value.astype(int)
     intensity_coords = pixelate_coord_path(m, line_coords, bresenham=True)
     intensity1 = sample_at_coords(m, intensity_coords)
-    intensity2 = m.data[ymin, xmin:xmax+1]
+    intensity2 = m.data[ymin, xmin : xmax + 1]
     contrast = (intensity2.max() - intensity2.min()) / (intensity2.max() + intensity2.min())
-    axes[format(m.wavelength.value, '0.0f')].plot(intensity_coords.Tx, intensity1)
-    axes[format(m.wavelength.value, '0.0f')].plot(intensity_coords.Tx, intensity2, '--')
-    axes[format(m.wavelength.value, '0.0f')].set_title(f'{m.wavelength: 0.0f}, Contrast: {contrast:0.2f}')
+    axes[format(m.wavelength.value, "0.0f")].plot(intensity_coords.Tx, intensity1)
+    axes[format(m.wavelength.value, "0.0f")].plot(intensity_coords.Tx, intensity2, "--")
+    axes[format(m.wavelength.value, "0.0f")].set_title(f"{m.wavelength: 0.0f}, Contrast: {contrast:0.2f}")
 
 
 #####################################################
@@ -319,13 +314,15 @@ axes["comb_mask"].imshow(mask_171_193 * mask_171_211 * mask_211_193, origin="low
 #
 
 mask_map = Map(((mask_171_193 * mask_171_211 * mask_211_193).astype(int), m171.meta))
-contours = mask_map.contour(0.5/u.s)
+contours = mask_map.contour(0.5 / u.s)
 contours = sorted(contours, key=lambda x: x.size, reverse=True)
 
-fig, axes = plt.subplot_mosaic([['seg']], layout="constrained", figsize=(6, 3), subplot_kw={'projection': m171})
-m171.plot(axes=axes['seg'])
-axes['seg'].imshow(tri_color_img)
+fig, axes = plt.subplot_mosaic(
+    [["seg"]], layout="constrained", figsize=(6, 3), subplot_kw={"projection": m171}
+)
+m171.plot(axes=axes["seg"])
+axes["seg"].imshow(tri_color_img)
 
 # For the moment just plot to top 5 contours based on "size" for contour
 for contour in contours[:6]:
-    axes["seg"].plot_coord(contour, color='w')
+    axes["seg"].plot_coord(contour, color="w")
