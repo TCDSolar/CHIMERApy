@@ -7,7 +7,7 @@ import cv2
 import mahotas
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.interpolate
+from scipy.interpolate import RectBivariateSpline
 from skimage.util import img_as_ubyte
 
 import astropy.units as u
@@ -48,15 +48,15 @@ def chimera(im171, im193, im211, imhmi):
     hdu_number = 0
     heda = fits.getheader(im171[0], hdu_number)
     data = fits.getdata(im171[0], ext=0) / (heda["EXPTIME"])
-    dn = scipy.interpolate.interp2d(x, x, data)
+    dn = RectBivariateSpline(x, x, data, kx=1, ky=1)
     data = dn(np.arange(0, 4096), np.arange(0, 4096))
     hedb = fits.getheader(im193[0], hdu_number)
     datb = fits.getdata(im193[0], ext=0) / (hedb["EXPTIME"])
-    dn = scipy.interpolate.interp2d(x, x, datb)
+    dn = RectBivariateSpline(x, x, datb, kx=1, ky=1)
     datb = dn(np.arange(0, 4096), np.arange(0, 4096))
     hedc = fits.getheader(im211[0], hdu_number)
     datc = fits.getdata(im211[0], ext=0) / (hedc["EXPTIME"])
-    dn = scipy.interpolate.interp2d(x, x, datc)
+    dn = RectBivariateSpline(x, x, datc, kx=1, ky=1)
     datc = dn(np.arange(0, 4096), np.arange(0, 4096))
     hedm = fits.getheader(imhmi[0], hdu_number)
     datm = fits.getdata(imhmi[0], ext=0)

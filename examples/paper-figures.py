@@ -331,4 +331,4 @@ axes["seg"].imshow(tri_color_img)
 
 # For the moment just plot to top 5 contours based on "size" for contour
 for contour in contours[:6]:
-    axes["seg"].plot_coord(contour, color="w")
+    axes["seg"].plot_coord(contour, color="w", linewidth=0.5)
