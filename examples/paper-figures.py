@@ -12,14 +12,16 @@ Srart of with imports
 
 import copy
 
-import astropy.units as u
 import numpy as np
-from astropy.coordinates import SkyCoord
-from astropy.visualization import make_lupton_rgb
 from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm
-from sunpy.map import (Map, all_coordinates_from_map, pixelate_coord_path,
-                       sample_at_coords)
+
+import astropy.units as u
+from astropy.coordinates import SkyCoord
+from astropy.units import UnitsError
+from astropy.visualization import make_lupton_rgb
+
+from sunpy.map import Map, all_coordinates_from_map, pixelate_coord_path, sample_at_coords
 
 #####################################################
 #
@@ -314,7 +316,11 @@ axes["comb_mask"].imshow(mask_171_193 * mask_171_211 * mask_211_193, origin="low
 #
 
 mask_map = Map(((mask_171_193 * mask_171_211 * mask_211_193).astype(int), m171.meta))
-contours = mask_map.contour(0.5 / u.s)
+try:
+    contours = mask_map.contour(0.5 / u.s)
+except UnitsError:
+    contours = mask_map.contour(50 * u.percent)
+
 contours = sorted(contours, key=lambda x: x.size, reverse=True)
 
 fig, axes = plt.subplot_mosaic(

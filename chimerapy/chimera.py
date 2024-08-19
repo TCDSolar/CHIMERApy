@@ -1,19 +1,21 @@
 """ """
 
-import glob
 import sys
+import glob
 
-import astropy.units as u
 import cv2
 import mahotas
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
-import sunpy.map
+from skimage.util import img_as_ubyte
+
+import astropy.units as u
 from astropy import wcs
 from astropy.io import fits
 from astropy.modeling.models import Gaussian2D
-from skimage.util import img_as_ubyte
+
+import sunpy.map
 
 
 def chimera_legacy():
