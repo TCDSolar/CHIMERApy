@@ -30,7 +30,7 @@ from sunpy.map import (
     sample_at_coords,
 )
 
-#####################################################
+# %%
 #
 # Figure 2
 # --------
@@ -79,7 +79,7 @@ for m in [m131, m171, m193, m211, m335, m94]:
     axes[wave_str].plot_coord(line_coords, "w", linewidth=1.5)
     axes[wave_str].set_facecolor("k")
 
-#####################################################
+# %%
 #
 # Figure 3
 # --------
@@ -106,7 +106,7 @@ for m in [m131, m171, m193, m211, m335, m94]:
     )
 
 
-#####################################################
+# %%
 #
 # Figure 4
 # --------
@@ -204,7 +204,7 @@ axes["hot_hist"].set_xlabel(211)
 axes["hot_hist"].set_ylabel(193)
 
 
-#####################################################
+# %%
 #
 # Figure 5
 # --------
@@ -332,7 +332,7 @@ axes["hot_hist"].plot(xx, 0.3 * xx, "r")
 axes["hot_hist"].plot(xx, fit193v211, "w")
 
 
-#####################################################
+# %%
 #
 # Figure 6
 # --------
@@ -363,6 +363,7 @@ tri_color_img = make_lupton_rgb(
 mask_171_211 = (d171_clipped_scaled / d211_clipped_scaled) >= (
     (np.mean(m171.data[disk_mask]) * 0.6357) / np.mean(m211.data[disk_mask])
 )
+
 mask_211_193 = (d211_clipped_scaled + d193_clipped_scaled) < (
     0.7 * (np.mean(m193.data[disk_mask]) + np.mean(m211.data[disk_mask]))
 )
@@ -383,8 +384,7 @@ axes["211_171"].set_title("171 / 211")
 axes["211_193"].imshow(mask_211_193, origin="lower")
 axes["211_193"].set_title("211 / 193")
 
-
-#####################################################
+# %%
 #
 # Figure 7
 # --------
@@ -397,16 +397,13 @@ fig, axes = plt.subplot_mosaic([["tri", "comb_mask"]], layout="constrained", fig
 axes["tri"].imshow(tri_color_img, origin="lower")
 axes["comb_mask"].imshow(mask_171_193 * mask_171_211 * mask_211_193, origin="lower")
 
-
-#####################################################
+# %%
 #
 # Figure 8
 # --------
 #
 # Figure 8 shows the top 5 (by area) contours created from the CH mask over plotted on the same tri-color image as in
 # Figures 6 and 7.
-#
-
 
 mask_map = Map(((mask_171_193 * mask_171_211 * mask_211_193).astype(int), m171.meta))
 try:
