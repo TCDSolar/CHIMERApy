@@ -16,12 +16,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.patches import Rectangle
-
-import astropy.units as u
-from astropy.coordinates import SkyCoord
-from astropy.units import UnitsError
-from astropy.visualization import make_lupton_rgb
-
 from sunpy.map import (
     Map,
     all_coordinates_from_map,
@@ -29,6 +23,11 @@ from sunpy.map import (
     pixelate_coord_path,
     sample_at_coords,
 )
+
+import astropy.units as u
+from astropy.coordinates import SkyCoord
+from astropy.units import UnitsError
+from astropy.visualization import make_lupton_rgb
 
 # %%
 #
