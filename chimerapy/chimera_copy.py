@@ -9,11 +9,84 @@ from astropy.visualization import make_lupton_rgb
 from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm
 from sunpy.map import Map, all_coordinates_from_map
+from matplotlib.path import Path
+from matplotlib.patches import PathPatch
+from scipy.optimize import minimize
 
 m171 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0171.fits")
 m193 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0193.fits")
 m211 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0211.fits")
 
+# From old IDL code
+threshold_171v193 = 0.6357
+threshold_171v211 = 0.7
+threshold_193v211 = 1.5102
+
+'''I tried a new method of calculating the slopes in which I made a path out of the bin edges and a second path for the 
+segmentation line to identify the bins that the line passed through. I then added up the total counts and made a funtion 
+to vary and optimize the slope by minimizing the total counts. I don't think my optimization section works correctly so maybe
+you could take a look?'''
+
+def find_edges(wave1: int, wave2: int):
+    map1 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0" + str(wave1) + ".fits")
+    map2 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0" + str(wave2) + ".fits")
+    # Since the data are taken at similar times neglect any coordinate changes so just use 171 maps coordinates
+    coords = all_coordinates_from_map(map1)
+    disk_mask = (coords.Tx**2 + coords.Ty**2) ** 0.5 < map1.rsun_obs
+
+    map1 = map1 / map1.exposure_time
+    map2 = map2 / map2.exposure_time
+
+    xx = np.linspace(0, 300, 500)
+
+    cool_counts, cool_xedge, cool_yedge = np.histogram2d(
+        map1.data[disk_mask].flatten(),
+        map2.data[disk_mask].flatten(),
+        bins=250,
+        range=[[0, 300], [0, 300]],
+        density=True,
+    )
+
+    xedges = np.array(cool_xedge)
+    yedges = np.array(cool_yedge)
+    return cool_counts, xedges, yedges
+
+cool_hist, cool_xedges, cool_yedges = find_edges(171, 193)
+warm_hist, warm_xedges, warm_yedges = find_edges(171, 211)
+cool_threshold = threshold_171v193
+warm_threshold = threshold_171v211
+
+def bins_intersected(xedges: np.array, yedges: np.array, slope:float, threshold: int, hist: np.array):
+    x = np.linspace(0, 300, 500)
+    y = slope * (x**threshold)
+    line_path = Path(list(zip(x, y)))
+    counts = 0
+    for i in range(len(xedges)  - 1):
+        for j in range(len(yedges) - 1):
+            bin_corners = [
+                (xedges[i], yedges[j]),
+                (xedges[i + 1], yedges[j]),
+                (xedges[i + 1], yedges[j + 1]),
+                (xedges[i], yedges[j + 1])
+            ] 
+            bin_path = Path(bin_corners)
+            if line_path.intersects_path(bin_path):
+                counts += hist[j, i]
+    return counts
+
+def objective_function(slope: float, xedges: np.array, yedges: np.array, threshold: float, hist: np.array):
+    return bins_intersected(xedges, yedges, slope, threshold, hist)
+
+initial_guess_cool = 2.25
+initial_guess_warm = .5
+bounds_cool = [(2, 2.5)]
+bounds_warm = [(.3, .75)]
+cool_result = minimize(objective_function, x0 = initial_guess_cool, args=(cool_xedges, cool_yedges, cool_threshold, cool_hist), method = 'Powell', bounds = bounds_cool)
+warm_result = minimize(objective_function, x0 = initial_guess_warm, args=(warm_xedges, warm_yedges, warm_threshold, warm_hist), method = 'Powell', bounds = bounds_warm)
+
+
+cool_optimal_slope = warm_result.x[0]
+cool_minimized_counts = warm_result.fun
 
 def segmenting_plots(scale_cold: float, scale_warm: float, scale_hot: float):
     m171 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0171.fits")
@@ -44,21 +117,16 @@ def segmenting_plots(scale_cold: float, scale_warm: float, scale_hot: float):
     cool_counts, *cool_bins = axes["cool_hist"].hist2d(
         m171.data[disk_mask].flatten(),
         m193.data[disk_mask].flatten(),
-        bins=150,
+        bins=60,
         range=[[0, 300], [0, 300]],
         norm=LogNorm(),
         density=True,
     )
-    # Finding the indices of nonzero counts
-    non_zero_cool = np.where(cool_counts > 0)
 
-    # Finding the corresponding minimum y-index
-    min_y_index = np.min(non_zero_cool[1])
 
-    # Map the index to the actual y-value
-    min_y_cool = cool_bins[1][min_y_index]
+
     axes["cool_hist"].set_facecolor("k")
-    axes["cool_hist"].plot(xx, (xx**scale_cold) + min_y_cool, "w")
+    axes["cool_hist"].plot(xx, scale_cold * (xx**threshold_171v193), "w")
 
     # 171 v 211
     warm_counts, *warm_bins = axes["warm_hist"].hist2d(
@@ -79,7 +147,7 @@ def segmenting_plots(scale_cold: float, scale_warm: float, scale_hot: float):
     min_y_warm = warm_bins[1][min_y_index]
     axes["warm_hist"].set_ylim(0, 100)
     axes["warm_hist"].set_facecolor("k")
-    axes["warm_hist"].plot(xx, (xx**scale_warm) + min_y_warm, "w")
+    axes["warm_hist"].plot(xx, (scale_warm * (xx**threshold_171v211)) + min_y_warm, "w")
 
     # 193 v 311
     hot_counts, *hot_bins = axes["hot_hist"].hist2d(
@@ -101,12 +169,12 @@ def segmenting_plots(scale_cold: float, scale_warm: float, scale_hot: float):
 
     axes["hot_hist"].set_ylim(0, 100)
     axes["hot_hist"].set_facecolor("k")
-    axes["hot_hist"].plot(xx, (xx**scale_hot) + min_y_hot, "w")
+    axes["hot_hist"].plot(xx, scale_hot * (xx**-threshold_193v211) + min_y_hot, "w")
 
     plt.show()
 
 
-segmenting_plots(0.7, 0.6, 0.7)
+segmenting_plots(2.025, .5, 2600)
 
 
 def clip_scale(map1: sunpy.map, clip1: float, clip2: float, clip3: float, scale: float):
