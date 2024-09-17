@@ -4,8 +4,8 @@ CHIMERApy Documentation
 This is the documentation for CHIMERApy.
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+
+    ../generated/gallery/index
 
 Indices and tables
 ==================
