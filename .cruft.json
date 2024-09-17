@@ -9,7 +9,7 @@
       "short_description": "CHIMERApy is a python implmentation of the CHIMERA coronal hole detection algorithm.",
       "author_name": "DIAS Solar",
       "author_email": "",
-      "project_url": "chimerapy.readthedocs.io",
+      "project_url": "chimera-py.readthedocs.io",
       "license": "BSD 3-Clause",
       "minimum_python_version": "3.9",
       "use_compiled_extensions": "n",
