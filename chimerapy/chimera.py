@@ -1,4 +1,5 @@
 import copy
+
 import astropy.units as u
 import numpy as np
 import sunpy
@@ -7,10 +8,9 @@ from astropy.units import UnitsError
 from astropy.visualization import make_lupton_rgb
 from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm
-from sunpy.map import Map, all_coordinates_from_map
 from matplotlib.path import Path
-from matplotlib.patches import PathPatch
 from scipy.optimize import minimize
+from sunpy.map import Map, all_coordinates_from_map
 
 m171 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0171.fits")
 m193 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0193.fits")
@@ -21,14 +21,23 @@ threshold_171v193 = 0.6357
 threshold_171v211 = 0.7
 threshold_193v211 = 1.5102
 
-'''I tried a new method of calculating the slopes in which I made a path out of the bin edges and a second path for the 
-segmentation line to identify the bins that the line passed through. I then added up the total counts and made a funtion 
+"""I tried a new method of calculating the slopes in which I made a path out of the bin edges and a second path for the
+segmentation line to identify the bins that the line passed through. I then added up the total counts and made a funtion
 to vary and optimize the slope by minimizing the total counts. I don't think my optimization section works correctly so maybe
-you could take a look?'''
+you could take a look?"""
+
 
 def find_edges(wave1: int, wave2: int):
-    map1 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0" + str(wave1) + ".fits")
-    map2 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0" + str(wave2) + ".fits")
+    map1 = Map(
+        "https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0"
+        + str(wave1)
+        + ".fits"
+    )
+    map2 = Map(
+        "https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0"
+        + str(wave2)
+        + ".fits"
+    )
     # Since the data are taken at similar times neglect any coordinate changes so just use 171 maps coordinates
     coords = all_coordinates_from_map(map1)
     disk_mask = (coords.Tx**2 + coords.Ty**2) ** 0.5 < map1.rsun_obs
@@ -50,42 +59,59 @@ def find_edges(wave1: int, wave2: int):
     yedges = np.array(cool_yedge)
     return cool_counts, xedges, yedges
 
+
 cool_hist, cool_xedges, cool_yedges = find_edges(171, 193)
 warm_hist, warm_xedges, warm_yedges = find_edges(171, 211)
 cool_threshold = threshold_171v193
 warm_threshold = threshold_171v211
 
-def bins_intersected(xedges: np.array, yedges: np.array, slope:float, threshold: int, hist: np.array):
+
+def bins_intersected(xedges: np.array, yedges: np.array, slope: float, threshold: int, hist: np.array):
     x = np.linspace(0, 300, 500)
     y = slope * (x**threshold)
     line_path = Path(list(zip(x, y)))
     counts = 0
-    for i in range(len(xedges)  - 1):
+    for i in range(len(xedges) - 1):
         for j in range(len(yedges) - 1):
             bin_corners = [
                 (xedges[i], yedges[j]),
                 (xedges[i + 1], yedges[j]),
                 (xedges[i + 1], yedges[j + 1]),
-                (xedges[i], yedges[j + 1])
-            ] 
+                (xedges[i], yedges[j + 1]),
+            ]
             bin_path = Path(bin_corners)
             if line_path.intersects_path(bin_path):
                 counts += hist[j, i]
     return counts
 
+
 def objective_function(slope: float, xedges: np.array, yedges: np.array, threshold: float, hist: np.array):
     return bins_intersected(xedges, yedges, slope, threshold, hist)
 
+
 initial_guess_cool = 2.25
-initial_guess_warm = .5
+initial_guess_warm = 0.5
 bounds_cool = [(2, 2.5)]
-bounds_warm = [(.3, .75)]
-cool_result = minimize(objective_function, x0 = initial_guess_cool, args=(cool_xedges, cool_yedges, cool_threshold, cool_hist), method = 'Powell', bounds = bounds_cool)
-warm_result = minimize(objective_function, x0 = initial_guess_warm, args=(warm_xedges, warm_yedges, warm_threshold, warm_hist), method = 'Powell', bounds = bounds_warm)
+bounds_warm = [(0.3, 0.75)]
+cool_result = minimize(
+    objective_function,
+    x0=initial_guess_cool,
+    args=(cool_xedges, cool_yedges, cool_threshold, cool_hist),
+    method="Powell",
+    bounds=bounds_cool,
+)
+warm_result = minimize(
+    objective_function,
+    x0=initial_guess_warm,
+    args=(warm_xedges, warm_yedges, warm_threshold, warm_hist),
+    method="Powell",
+    bounds=bounds_warm,
+)
 
 
 cool_optimal_slope = warm_result.x[0]
 cool_minimized_counts = warm_result.fun
+
 
 def segmenting_plots(scale_cold: float, scale_warm: float, scale_hot: float):
     m171 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0171.fits")
@@ -121,8 +147,6 @@ def segmenting_plots(scale_cold: float, scale_warm: float, scale_hot: float):
         norm=LogNorm(),
         density=True,
     )
-
-
 
     axes["cool_hist"].set_facecolor("k")
     axes["cool_hist"].plot(xx, scale_cold * (xx**threshold_171v193), "w")
@@ -173,7 +197,7 @@ def segmenting_plots(scale_cold: float, scale_warm: float, scale_hot: float):
     plt.show()
 
 
-segmenting_plots(2.025, .5, 2600)
+segmenting_plots(2.025, 0.5, 2600)
 
 
 def clip_scale(map1: sunpy.map, clip1: float, clip2: float, clip3: float, scale: float):
@@ -230,5 +254,3 @@ def create_contours(mask1: np.ndarray, mask2: np.ndarray, mask3: np.ndarray):
 
 
 create_contours(mask211_171, mask211_193, mask171_193)
-
-
