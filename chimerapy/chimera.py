@@ -448,7 +448,7 @@ def chimera(im171, im193, im211, imhmi):
                     props[11, ident + 1] = str(np.round(Ysb))
                     props[12, ident + 1] = str(eastl + "-" + westl)
                     props[13, ident + 1] = str(width)
-                    props[14, ident + 1] = f"{trummar / 1e+12:.1e}"
+                    props[14, ident + 1] = f"{trummar / 1e12:.1e}"
                     props[15, ident + 1] = str(np.round((arcar * 100 / (np.pi * (rs**2))), 1))
                     props[16, ident + 1] = str(np.round(mB, 1))
                     props[17, ident + 1] = str(np.round(mBpos, 1))
@@ -459,9 +459,9 @@ def chimera(im171, im193, im211, imhmi):
                     props[21, ident + 1] = f"{tbpos:.1e}"
                     tbneg = np.sum(datm[pos[:, 0], pos[:, 1]][np.where(datm[pos[:, 0], pos[:, 1]] < 0)])
                     props[22, ident + 1] = f"{tbneg:.1e}"
-                    props[23, ident + 1] = f"{mB * trummar * 1e+16:.1e}"
-                    props[24, ident + 1] = f"{mBpos * trummar * 1e+16:.1e}"
-                    props[25, ident + 1] = f"{mBneg * trummar * 1e+16:.1e}"
+                    props[23, ident + 1] = f"{mB * trummar * 1e16:.1e}"
+                    props[24, ident + 1] = f"{mBpos * trummar * 1e16:.1e}"
+                    props[25, ident + 1] = f"{mBneg * trummar * 1e16:.1e}"
 
                     # =====sets up code for next possible coronal hole=====
 
