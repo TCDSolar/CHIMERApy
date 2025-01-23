@@ -4,7 +4,7 @@
 # This file does only contain a selection of the most common options. For a
 # full list see the documentation:
 # http://www.sphinx-doc.org/en/master/config
-
+import pathlib
 
 # -- Project information -----------------------------------------------------
 
@@ -24,16 +24,17 @@ release = __version__
 # ones.
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.intersphinx",
-    "sphinx.ext.todo",
     "sphinx.ext.coverage",
-    "sphinx.ext.inheritance_diagram",
-    "sphinx.ext.viewcode",
-    "sphinx.ext.napoleon",
     "sphinx.ext.doctest",
+    "sphinx.ext.inheritance_diagram",
+    "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.todo",
+    "sphinx.ext.viewcode",
     "sphinx_automodapi.automodapi",
     "sphinx_automodapi.smart_resolver",
+    "sphinx_gallery.gen_gallery",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -75,3 +76,17 @@ html_theme = "alabaster"
 # the docs. For more options, see:
 # https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autoclass_content
 autoclass_content = "both"
+
+# -- Options for the Sphinx gallery -------------------------------------------
+path = pathlib.Path.cwd()
+example_dir = path.parent.joinpath("examples")
+sphinx_gallery_conf = {
+    "backreferences_dir": str(path.joinpath("generated", "modules")),
+    "filename_pattern": "^((?!skip_).)*$",
+    "examples_dirs": example_dir,
+    "gallery_dirs": path.joinpath("generated", "gallery"),
+    "abort_on_example_error": False,
+    "plot_gallery": "True",
+    "remove_config_comments": True,
+    "only_warn_on_example_error": True,
+}
