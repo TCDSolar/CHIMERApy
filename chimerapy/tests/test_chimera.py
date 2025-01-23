@@ -14,7 +14,7 @@ INPUT_FILES = {
 
 
 def test_chimera(tmp_path):
-    Downloader.simple_download(INPUT_FILES.values(), path=tmp_path)
+    _ = Downloader.simple_download(INPUT_FILES.values(), path=tmp_path)
     os.chdir(tmp_path)
     chimera_legacy()
 
