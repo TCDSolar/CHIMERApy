@@ -3,7 +3,7 @@ from pathlib import Path
 
 from parfive import Downloader
 
-from chimerapy.chimera import chimera_legacy
+from chimerapy.chimera_original import chimera_legacy
 
 INPUT_FILES = {
     "aia171": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00171_fd_20160922_103010.fts.gz",
