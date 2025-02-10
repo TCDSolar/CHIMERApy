@@ -62,6 +62,7 @@ fig, axes = plt.subplot_mosaic(
         "94": {"projection": m94},
     },
 )
+plt.close('all')
 temps = {
     "131": 0.4,
     "171": 0.7,
@@ -88,9 +89,6 @@ for m in [m131, m171, m193, m211, m335, m94]:
 # and display in the plot title.
 #
 
-fig, axes = plt.subplot_mosaic(
-    [["131"], ["171"], ["193"], ["211"], ["335"], ["94"]], layout="constrained", figsize=(6, 9), sharex=True
-)
 for m in [m131, m171, m193, m211, m335, m94]:
     line_coords = SkyCoord([-200, 0], [-100, -100], unit=(u.arcsec, u.arcsec), frame=m.coordinate_frame)
     x, y = m.world_to_pixel(line_coords)
@@ -137,70 +135,6 @@ m211 = m211 / m211.exposure_time
 # m211.data[:, :] = medfilt2d(m211.data, 5)
 
 
-fig, axes = plt.subplot_mosaic(
-    [["cool_scat", "cool_hist"], ["warm_scat", "warm_hist"], ["hot_scat", "hot_hist"]],
-    layout="constrained",
-    figsize=(6, 9),
-)
-
-axes["cool_scat"].scatter(m171.data[disk_mask], m193.data[disk_mask], alpha=0.2, edgecolor="none", s=2.5)
-axes["cool_scat"].set_xlim(0, 2000)
-axes["cool_scat"].set_ylim(0, 2000)
-axes["cool_scat"].set_xlabel(171)
-axes["cool_scat"].set_ylabel(193)
-axes["cool_scat"].add_patch(Rectangle((0, 0), 300, 300, ec="r", fill=None))
-cool_counts, *cool_bins = axes["cool_hist"].hist2d(
-    m171.data[disk_mask].flatten(),
-    m193.data[disk_mask].flatten(),
-    bins=150,
-    range=[[0, 300], [0, 300]],
-    norm=LogNorm(),
-    density=True,
-)
-axes["cool_hist"].set_facecolor("k")
-axes["cool_hist"].contour(cool_counts.T, np.linspace(1e-6, 1e-4, 5), cmap="Greys", extent=(0, 300, 0, 300))
-axes["cool_hist"].set_xlabel(171)
-axes["cool_hist"].set_ylabel(193)
-
-axes["warm_scat"].scatter(m171.data[disk_mask], m211.data[disk_mask], alpha=0.2, edgecolor="none", s=2.5)
-axes["warm_scat"].set_xlim(0, 2000)
-axes["warm_scat"].set_ylim(0, 2000)
-axes["warm_scat"].set_xlabel(171)
-axes["warm_scat"].set_ylabel(211)
-axes["warm_scat"].add_patch(Rectangle((0, 0), 300, 100, ec="r", fill=None))
-warm_counts, *warm_bins = axes["warm_hist"].hist2d(
-    m171.data[disk_mask].flatten(),
-    m211.data[disk_mask].flatten(),
-    bins=250,
-    range=[[0, 300], [0, 300]],
-    norm=LogNorm(),
-    density=True,
-)
-axes["warm_hist"].set_ylim(0, 100)
-axes["warm_hist"].set_facecolor("k")
-axes["warm_hist"].contour(warm_counts.T, np.linspace(1e-5, 5e-4, 5), cmap="Greys", extent=(0, 300, 0, 300))
-axes["warm_hist"].set_xlabel(171)
-axes["warm_hist"].set_ylabel(211)
-
-axes["hot_scat"].scatter(m193.data[disk_mask], m211.data[disk_mask], alpha=0.2, edgecolor="none", s=2.5)
-axes["hot_scat"].set_xlim(0, 2000)
-axes["hot_scat"].set_ylim(0, 2000)
-axes["hot_scat"].set_xlabel(193)
-axes["hot_scat"].set_ylabel(211)
-axes["hot_scat"].add_patch(Rectangle((0, 0), 300, 100, ec="r", fill=None))
-hot_counts, *hot_bins = axes["hot_hist"].hist2d(
-    m193.data[disk_mask].flatten(),
-    m211.data[disk_mask].flatten(),
-    bins=250,
-    range=[[0, 300], [0, 300]],
-    norm=LogNorm(),
-    density=True,
-)
-axes["hot_hist"].set_ylim(0, 100)
-axes["hot_hist"].set_facecolor("k")
-axes["hot_hist"].contour(hot_counts.T, np.linspace(1e-5, 1e-3, 5), cmap="Greys", extent=(0, 300, 0, 300))
-axes["hot_hist"].set_xlabel(211)
-axes["hot_hist"].set_ylabel(193)
 
 
 # %%
@@ -225,110 +159,6 @@ xx = np.linspace(0, 300, 500)
 fit171v193 = 2.25 * xx**threshold_171v193
 fit171v211 = 0.5 * xx**threshold_171v211
 fit193v211 = 2600 * xx**-threshold_193v211
-
-fig, axes = plt.subplot_mosaic(
-    [["cool_log", "cool_hist"], ["warm_log", "warm_hist"], ["hot_log", "hot_hist"]],
-    layout="constrained",
-    figsize=(6, 9),
-)
-
-# 171 v 193
-axes["cool_log"].hist2d(
-    m171.data[disk_mask].flatten(),
-    m193.data[disk_mask].flatten(),
-    bins=150,
-    range=[[0, 300], [0, 300]],
-    norm=LogNorm(),
-    density=True,
-)
-axes["cool_log"].set_xlim(10, 300)
-axes["cool_log"].set_xscale("log")
-axes["cool_log"].set_ylim(10, 300)
-axes["cool_log"].set_yscale("log")
-axes["cool_log"].set_facecolor("k")
-axes["cool_log"].set_xlabel(171)
-axes["cool_log"].set_ylabel(193)
-axes["cool_log"].plot(xx, fit171v193, "w")  # I_193 = 2.25 * I_171^0.7
-
-cool_counts, *cool_bins = axes["cool_hist"].hist2d(
-    m171.data[disk_mask].flatten(),
-    m193.data[disk_mask].flatten(),
-    bins=150,
-    range=[[0, 300], [0, 300]],
-    norm=LogNorm(),
-    density=True,
-)
-axes["cool_hist"].set_facecolor("k")
-axes["cool_hist"].set_xlabel(171)
-axes["cool_hist"].set_ylabel(193)
-axes["cool_hist"].plot(xx, fit171v193, "w")
-
-
-# 171 v 211
-axes["warm_log"].hist2d(
-    m171.data[disk_mask].flatten(),
-    m211.data[disk_mask].flatten(),
-    bins=250,
-    range=[[0, 300], [0, 300]],
-    norm=LogNorm(),
-    density=True,
-)
-axes["warm_log"].set_xlim(10, 300)
-axes["warm_log"].set_xscale("log")
-axes["warm_log"].set_ylim(3, 100)
-axes["warm_log"].set_yscale("log")
-axes["warm_log"].set_facecolor("k")
-axes["warm_log"].set_xlabel(171)
-axes["warm_log"].set_ylabel(211)
-axes["warm_log"].plot(xx, fit171v211, "w")
-
-warm_counts, *warm_bins = axes["warm_hist"].hist2d(
-    m171.data[disk_mask].flatten(),
-    m211.data[disk_mask].flatten(),
-    bins=250,
-    range=[[0, 300], [0, 300]],
-    norm=LogNorm(),
-    density=True,
-)
-axes["warm_hist"].set_ylim(0, 100)
-axes["warm_hist"].set_facecolor("k")
-axes["warm_hist"].set_xlabel(171)
-axes["warm_hist"].set_ylabel(211)
-axes["warm_hist"].plot(xx, fit171v211, "w")
-
-# 193 v 211
-axes["hot_log"].hist2d(
-    m193.data[disk_mask].flatten(),
-    m211.data[disk_mask].flatten(),
-    bins=250,
-    range=[[0, 300], [0, 300]],
-    norm=LogNorm(),
-    density=True,
-)
-axes["hot_log"].set_xlim(10, 300)
-axes["hot_log"].set_xscale("log")
-axes["hot_log"].set_ylim(2, 100)
-axes["hot_log"].set_yscale("log")
-axes["hot_log"].set_xlabel(193)
-axes["hot_log"].set_ylabel(211)
-axes["hot_log"].set_facecolor("k")
-axes["hot_log"].plot(xx, 0.3 * xx, "r")
-axes["hot_log"].plot(xx, fit193v211, "w")
-
-hot_counts, *hot_bins = axes["hot_hist"].hist2d(
-    m193.data[disk_mask].flatten(),
-    m211.data[disk_mask].flatten(),
-    bins=250,
-    range=[[0, 300], [0, 300]],
-    norm=LogNorm(),
-    density=True,
-)
-axes["hot_hist"].set_ylim(0, 100)
-axes["hot_hist"].set_facecolor("k")
-axes["hot_hist"].set_xlabel(193)
-axes["hot_hist"].set_ylabel(211)
-axes["hot_hist"].plot(xx, 0.3 * xx, "r")
-axes["hot_hist"].plot(xx, fit193v211, "w")
 
 
 # %%
@@ -371,18 +201,6 @@ mask_171_193 = (d171_clipped_scaled / d193_clipped_scaled) >= (
     (np.mean(m171.data[disk_mask]) * 1.5102) / np.mean(m193.data[disk_mask])
 )
 
-fig, axes = plt.subplot_mosaic(
-    [["tri", "193_171"], ["211_171", "211_193"]], layout="constrained", figsize=(6, 6)
-)
-
-axes["tri"].imshow(tri_color_img, origin="lower")
-axes["193_171"].imshow(mask_171_193, origin="lower")
-axes["193_171"].set_title("171 / 193")
-axes["211_171"].imshow(mask_171_211, origin="lower")
-axes["211_171"].set_title("171 / 211")
-axes["211_193"].imshow(mask_211_193, origin="lower")
-axes["211_193"].set_title("211 / 193")
-
 # %%
 #
 # Figure 7
@@ -390,11 +208,6 @@ axes["211_193"].set_title("211 / 193")
 #
 # Figure 7 shows the log transformed and clipped 171, 193, and 211 as a tri-color image (left) and the final CH mask
 # obtained by taking the product of the individual candidate masks.
-
-fig, axes = plt.subplot_mosaic([["tri", "comb_mask"]], layout="constrained", figsize=(6, 3))
-
-axes["tri"].imshow(tri_color_img, origin="lower")
-axes["comb_mask"].imshow(mask_171_193 * mask_171_211 * mask_211_193, origin="lower")
 
 # %%
 #
@@ -404,20 +217,26 @@ axes["comb_mask"].imshow(mask_171_193 * mask_171_211 * mask_211_193, origin="low
 # Figure 8 shows the top 5 (by area) contours created from the CH mask over plotted on the same tri-color image as in
 # Figures 6 and 7.
 
-mask_map = Map(((mask_171_193 * mask_171_211 * mask_211_193).astype(int), m171.meta))
-try:
-    contours = mask_map.contour(0.5 / u.s)
-except UnitsError:
-    contours = mask_map.contour(50 * u.percent)
+def final_mask(m171, tri_color_img, mask_171_211, mask_211_193, mask_171_193):
+    mask_map = Map(((mask_171_193 * mask_171_211 * mask_211_193).astype(int), m171.meta))
+    try:
+        contours = mask_map.contour(0.5 / u.s)
+    except UnitsError:
+        contours = mask_map.contour(50 * u.percent)
 
-contours = sorted(contours, key=lambda x: x.size, reverse=True)
+    contours = sorted(contours, key=lambda x: x.size, reverse=True)
 
-fig, axes = plt.subplot_mosaic(
+    fig, axes = plt.subplot_mosaic(
     [["seg"]], layout="constrained", figsize=(6, 3), subplot_kw={"projection": m171}
 )
-m171.plot(axes=axes["seg"])
-axes["seg"].imshow(tri_color_img)
+    m171.plot(axes=axes["seg"])
+    axes["seg"].imshow(tri_color_img)
 
 # For the moment just plot to top 5 contours based on "size" for contour
-for contour in contours[:6]:
-    axes["seg"].plot_coord(contour, color="w", linewidth=0.5)
+    for contour in contours[:6]:
+        axes["seg"].plot_coord(contour, color="w", linewidth=0.5)
+
+
+    plt.show()
+
+final_mask(m171, tri_color_img, mask_171_211, mask_211_193, mask_171_193)
