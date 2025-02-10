@@ -45,51 +45,51 @@ def chimera(im171, im193, im211, imhmi):
     # =====Reads in data and resizes images=====
     x = np.arange(0, 1024) * 4
     hdu_number = 0
-    heda = fits.getheader(im171[0], hdu_number)
-    data = fits.getdata(im171[0], ext=0) / (heda["EXPTIME"])
-    dn = RectBivariateSpline(x, x, data, kx=1, ky=1)
-    data = dn(np.arange(0, 4096), np.arange(0, 4096))
-    hedb = fits.getheader(im193[0], hdu_number)
-    datb = fits.getdata(im193[0], ext=0) / (hedb["EXPTIME"])
-    dn = RectBivariateSpline(x, x, datb, kx=1, ky=1)
-    datb = dn(np.arange(0, 4096), np.arange(0, 4096))
-    hedc = fits.getheader(im211[0], hdu_number)
-    datc = fits.getdata(im211[0], ext=0) / (hedc["EXPTIME"])
-    dn = RectBivariateSpline(x, x, datc, kx=1, ky=1)
-    datc = dn(np.arange(0, 4096), np.arange(0, 4096))
-    hedm = fits.getheader(imhmi[0], hdu_number)
-    datm = fits.getdata(imhmi[0], ext=0)
-    # dn = scipy.interpolate.interp2d(np.arange(4096), np.arange(4096), datm)
-    # datm = dn(np.arange(0, 1024)*4, np.arange(0, 1024)*4)
-    if hedm["crota1"] > 90:
-        datm = np.rot90(np.rot90(datm))
+    hed171 = fits.getheader(im171[0], hdu_number)
+    dat171 = fits.getdata(im171[0], ext=0) / (hed171["EXPTIME"])
+    dn = RectBivariateSpline(x, x, dat171, kx=1, ky=1)
+    dat171 = dn(np.arange(0, 4096), np.arange(0, 4096))
+    hed193 = fits.getheader(im193[0], hdu_number)
+    dat193 = fits.getdata(im193[0], ext=0) / (hed193["EXPTIME"])
+    dn = RectBivariateSpline(x, x, dat193, kx=1, ky=1)
+    dat193 = dn(np.arange(0, 4096), np.arange(0, 4096))
+    hed211 = fits.getheader(im211[0], hdu_number)
+    dat211 = fits.getdata(im211[0], ext=0) / (hed211["EXPTIME"])
+    dn = RectBivariateSpline(x, x, dat211, kx=1, ky=1)
+    dat211 = dn(np.arange(0, 4096), np.arange(0, 4096))
+    hedhmi = fits.getheader(imhmi[0], hdu_number)
+    dathmi = fits.getdata(imhmi[0], ext=0)
+    # dn = scipy.interpolate.interp2d(np.arange(4096), np.arange(4096), dathmi)
+    # dathmi = dn(np.arange(0, 1024)*4, np.arange(0, 1024)*4)
+    if hedhmi["crota1"] > 90:
+        dathmi = np.rot90(np.rot90(dathmi))
     # =====Specifies solar radius and calculates conversion value of pixel to arcsec=====
-    s = np.shape(data)
-    rs = heda["rsun"]
-    if hedb["ctype1"] != "solar_x ":
-        hedb["ctype1"] = "solar_x "
-        hedb["ctype2"] = "solar_y "
-    if heda["cdelt1"] > 1:
-        heda["cdelt1"], heda["cdelt2"], heda["crpix1"], heda["crpix2"] = (
-            heda["cdelt1"] / 4.0,
-            heda["cdelt2"] / 4.0,
-            heda["crpix1"] * 4.0,
-            heda["crpix2"] * 4.0,
+    s = np.shape(dat171)
+    rs = hed171["rsun"]
+    if hed193["ctype1"] != "solar_x ":
+        hed193["ctype1"] = "solar_x "
+        hed193["ctype2"] = "solar_y "
+    if hed171["cdelt1"] > 1:
+        hed171["cdelt1"], hed171["cdelt2"], hed171["crpix1"], hed171["crpix2"] = (
+            hed171["cdelt1"] / 4.0,
+            hed171["cdelt2"] / 4.0,
+            hed171["crpix1"] * 4.0,
+            hed171["crpix2"] * 4.0,
         )
-        hedb["cdelt1"], hedb["cdelt2"], hedb["crpix1"], hedb["crpix2"] = (
-            hedb["cdelt1"] / 4.0,
-            hedb["cdelt2"] / 4.0,
-            hedb["crpix1"] * 4.0,
-            hedb["crpix2"] * 4.0,
+        hed193["cdelt1"], hed193["cdelt2"], hed193["crpix1"], hed193["crpix2"] = (
+            hed193["cdelt1"] / 4.0,
+            hed193["cdelt2"] / 4.0,
+            hed193["crpix1"] * 4.0,
+            hed193["crpix2"] * 4.0,
         )
-        hedc["cdelt1"], hedc["cdelt2"], hedc["crpix1"], hedc["crpix2"] = (
-            hedc["cdelt1"] / 4.0,
-            hedc["cdelt2"] / 4.0,
-            hedc["crpix1"] * 4.0,
-            hedc["crpix2"] * 4.0,
+        hed211["cdelt1"], hed211["cdelt2"], hed211["crpix1"], hed211["crpix2"] = (
+            hed211["cdelt1"] / 4.0,
+            hed211["cdelt2"] / 4.0,
+            hed211["crpix1"] * 4.0,
+            hed211["crpix2"] * 4.0,
         )
-    dattoarc = heda["cdelt1"]
-    convermul = dattoarc / hedm["cdelt1"]
+    dattoarc = hed171["cdelt1"]
+    convermul = dattoarc / hedhmi["cdelt1"]
     # =====Alternative coordinate systems=====
     hdul = fits.open(im171[0])
     hdul[0].header["CUNIT1"] = "arcsec"
@@ -99,7 +99,7 @@ def chimera(im171, im193, im211, imhmi):
     x, y = (np.meshgrid(*[np.arange(adj * v.value) for v in aia.dimensions]) * u.pixel) / adj
     hpc = aia.pixel_to_world(x, y)
     hg = hpc.transform_to(sunpy.coordinates.frames.HeliographicStonyhurst)
-    csys = wcs.WCS(hedb)
+    csys = wcs.WCS(hed193)
     # =======setting up arrays to be used============
     ident = 1
     iarr = np.zeros((s[0], s[1]), dtype=np.byte)
@@ -174,28 +174,28 @@ def chimera(im171, im193, im211, imhmi):
         "Mx",
     )
     # =====removes negative data values=====
-    data[np.where(data <= 0)] = 0
-    datb[np.where(datb <= 0)] = 0
-    datc[np.where(datc <= 0)] = 0
+    dat171[np.where(dat171 <= 0)] = 0
+    dat193[np.where(dat193 <= 0)] = 0
+    dat211[np.where(dat211 <= 0)] = 0
     # ============make a multi-wavelength image for contours==================
     with np.errstate(divide="ignore"):
-        t0 = np.log10(datc)
-        t1 = np.log10(datb)
-        t2 = np.log10(data)
-    t0[np.where(t0 < 0.8)] = 0.8
-    t0[np.where(t0 > 2.7)] = 2.7
-    t1[np.where(t1 < 1.4)] = 1.4
-    t1[np.where(t1 > 3.0)] = 3.0
-    t2[np.where(t2 < 1.2)] = 1.2
-    t2[np.where(t2 > 3.9)] = 3.9
-    t0 = np.array(((t0 - 0.8) / (2.7 - 0.8)) * 255, dtype=np.float32)
-    t1 = np.array(((t1 - 1.4) / (3.0 - 1.4)) * 255, dtype=np.float32)
-    t2 = np.array(((t2 - 1.2) / (3.9 - 1.2)) * 255, dtype=np.float32)
+        t211 = np.log10(dat211)
+        t193 = np.log10(dat193)
+        t171 = np.log10(dat171)
+    t211[np.where(t211 < 0.8)] = 0.8
+    t211[np.where(t211 > 2.7)] = 2.7
+    t193[np.where(t193 < 1.4)] = 1.4
+    t193[np.where(t193 > 3.0)] = 3.0
+    t171[np.where(t171 < 1.2)] = 1.2
+    t171[np.where(t171 > 3.9)] = 3.9
+    t211 = np.array(((t211 - 0.8) / (2.7 - 0.8)) * 255, dtype=np.float32)
+    t193 = np.array(((t193 - 1.4) / (3.0 - 1.4)) * 255, dtype=np.float32)
+    t171 = np.array(((t171 - 1.2) / (3.9 - 1.2)) * 255, dtype=np.float32)
     # ====create 3 segmented bitmasks=====
     with np.errstate(divide="ignore", invalid="ignore"):
-        bmmix[np.where(t2 / t0 >= ((np.mean(data) * 0.6357) / (np.mean(datc))))] = 1
-        bmhot[np.where(t0 + t1 < (0.7 * (np.mean(datb) + np.mean(datc))))] = 1
-        bmcool[np.where(t2 / t1 >= ((np.mean(data) * 1.5102) / (np.mean(datb))))] = 1
+        bmmix[np.where(t171 / t211 >= ((np.mean(dat171) * 0.6357) / (np.mean(dat211))))] = 1
+        bmhot[np.where(t211 + t193 < (0.7 * (np.mean(dat193) + np.mean(dat211))))] = 1
+        bmcool[np.where(t171 / t193 >= ((np.mean(dat171) * 1.5102) / (np.mean(dat193))))] = 1
     # ====logical conjunction of 3 segmentations=======
     cand = bmcool * bmmix * bmhot
     # ====plot tricolour image with lon/lat conotours=======
@@ -293,10 +293,10 @@ def chimera(im171, im193, im211, imhmi):
                     pos[:, 1] = np.array((poslin[1] - (s[0] / 2)) * convermul + (s[1] / 2), dtype=np.uint)
                     npix = list(
                         np.histogram(
-                            datm[pos[:, 0], pos[:, 1]],
+                            dathmi[pos[:, 0], pos[:, 1]],
                             bins=np.arange(
-                                np.round(np.min(datm[pos[:, 0], pos[:, 1]])) - 0.5,
-                                np.round(np.max(datm[pos[:, 0], pos[:, 1]])) + 0.6,
+                                np.round(np.min(dathmi[pos[:, 0], pos[:, 1]])) - 0.5,
+                                np.round(np.max(dathmi[pos[:, 0], pos[:, 1]])) + 0.6,
                                 1,
                             ),
                         )
@@ -316,7 +316,7 @@ def chimera(im171, im193, im211, imhmi):
                     ):
                         continue
                     if (
-                        np.absolute(np.mean(datm[pos[:, 0], pos[:, 1]])) < garr[int(cent[0]), int(cent[1])]
+                        np.absolute(np.mean(dathmi[pos[:, 0], pos[:, 1]])) < garr[int(cent[0]), int(cent[1])]
                         and arcar < 40000
                     ):
                         continue
@@ -386,7 +386,7 @@ def chimera(im171, im193, im211, imhmi):
 
                     # ====calculate the mean magnetic field=====
 
-                    mB = np.mean(datm[pos[:, 0], pos[:, 1]])
+                    mB = np.mean(dathmi[pos[:, 0], pos[:, 1]])
                     mBpos = np.sum(npix[0][wh1] * npix[1][wh1]) / np.sum(npix[0][wh1])
                     mBneg = np.sum(npix[0][wh2] * npix[1][wh2]) / np.sum(npix[0][wh2])
 
@@ -456,9 +456,9 @@ def chimera(im171, im193, im211, imhmi):
                     props[18, ident + 1] = str(np.round(mBneg, 1))
                     props[19, ident + 1] = str(np.round(np.max(npix[1]), 1))
                     props[20, ident + 1] = str(np.round(np.min(npix[1]), 1))
-                    tbpos = np.sum(datm[pos[:, 0], pos[:, 1]][np.where(datm[pos[:, 0], pos[:, 1]] > 0)])
+                    tbpos = np.sum(dathmi[pos[:, 0], pos[:, 1]][np.where(dathmi[pos[:, 0], pos[:, 1]] > 0)])
                     props[21, ident + 1] = f"{tbpos:.1e}"
-                    tbneg = np.sum(datm[pos[:, 0], pos[:, 1]][np.where(datm[pos[:, 0], pos[:, 1]] < 0)])
+                    tbneg = np.sum(dathmi[pos[:, 0], pos[:, 1]][np.where(dathmi[pos[:, 0], pos[:, 1]] < 0)])
                     props[22, ident + 1] = f"{tbneg:.1e}"
                     props[23, ident + 1] = f"{mB * trummar * 1e16:.1e}"
                     props[24, ident + 1] = f"{mBpos * trummar * 1e16:.1e}"
@@ -467,7 +467,7 @@ def chimera(im171, im193, im211, imhmi):
                     # =====sets up code for next possible coronal hole=====
 
                     ident = ident + 1
-    return circ, data, datb, datc, dattoarc, hedb, iarr, props, rs, slate, center, xgrid, ygrid
+    return circ, dat171, dat193, dat211, dattoarc, hed193, iarr, props, rs, slate, center, xgrid, ygrid
 
 
 def rescale01(arr, cmin=None, cmax=None, a=0, b=1):
