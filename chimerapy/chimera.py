@@ -2,7 +2,7 @@ import numpy as np
 from sunpy.map import all_coordinates_from_map, coordinate_is_on_solar_disk
 
 
-def process_solar_images(m171, m193, m211):
+def generate_candidate_mask(m171, m193, m211):
     r"""
     Generate Chimera mask.
 
@@ -22,7 +22,6 @@ def process_solar_images(m171, m193, m211):
         A binary version the Chimera mask.
     """
 
-    # Part 3
     coords = all_coordinates_from_map(m171)
     disk_mask = coordinate_is_on_solar_disk(coords)
 
@@ -30,12 +29,10 @@ def process_solar_images(m171, m193, m211):
     m193 = m193 / m193.exposure_time
     m211 = m211 / m211.exposure_time
 
-    # Part 4
     threshold_171v193 = 0.6357
     threshold_171v211 = 0.7
     threshold_193v211 = 1.5102
 
-    # Part 5
     d171_min, d171_max = 1.2, 3.9
     d193_min, d193_max = 1.4, 3.0
     d211_min, d211_max = 0.8, 2.7
@@ -49,7 +46,6 @@ def process_solar_images(m171, m193, m211):
     d211_clipped = np.clip(np.log10(m211.data), d211_min, d211_max)
     d211_clipped_scaled = ((d211_clipped - d211_min) / (d211_max - d211_min)) * 255
 
-    # Part 6
     mask_171_211 = (d171_clipped_scaled / d211_clipped_scaled) >= (
         (np.mean(m171.data[disk_mask]) * threshold_171v211) / np.mean(m211.data[disk_mask])
     )

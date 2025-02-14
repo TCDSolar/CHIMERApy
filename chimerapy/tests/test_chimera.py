@@ -1,29 +1,22 @@
 import os
 from pathlib import Path
-
+import pytest
 from parfive import Downloader
+import numpy as np
+from sunpy.map import Map
+from chimerapy.chimera import generate_candidate_mask
+from examples.paper_figures import mask_map
 
-from chimerapy.chimera_original import chimera_legacy
+aia171= Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0171.fits")
+aia193= Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0193.fits")
+aia211= Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0211.fits")
 
-INPUT_FILES = {
-    "aia171": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00171_fd_20160922_103010.fts.gz",
-    "aia193": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00193_fd_20160922_103041.fts.gz",
-    "aia211": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00211_fd_20160922_103046.fts.gz",
-    "hmi_mag": "https://solarmonitor.org/data/2016/09/22/fits/shmi/shmi_maglc_fd_20160922_094640.fts.gz",
-}
+def test_generate_candidate_mask():
 
+    result_mask = generate_candidate_mask(aia171, aia193, aia211)
 
-def test_chimera(tmp_path):
-    Downloader.simple_download(INPUT_FILES.values(), path=tmp_path)
-    os.chdir(tmp_path)
-    chimera_legacy()
-
-    test_summary_file = Path(__file__).parent / "test_ch_summary.txt"
-    with test_summary_file.open("r") as f:
-        test_summary_text = f.read()
-
-    ch_summary_file = tmp_path / "ch_summary.txt"
-    with ch_summary_file.open("r") as f:
-        ch_summary_text = f.read()
-
-    assert ch_summary_text == test_summary_text
+    expected_shape = aia171.data.shape
+    assert result_mask.shape == expected_shape, "Mask shape does not match expected shape."
+    
+    expected_mask = mask_map
+    np.testing.assert_allclose(result_mask, expected_mask, atol=0.1)
