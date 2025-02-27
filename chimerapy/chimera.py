@@ -15,7 +15,6 @@ def generate_candidate_mask(m171, m193, m211):
     m211 : `sunpy.map.Map
         This is the 211 Ångström UV map.
 
-
     Returns
     -------
     numpy.ndarray
