@@ -49,6 +49,7 @@ m193 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA201
 m211 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0211.fits")
 m335 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/09/22/H1200/AIA20160922_1200_0335.fits")
 
+
 fig, axes = plt.subplot_mosaic(
     [["131", "171"], ["193", "211"], ["335", "94"]],
     layout="constrained",
