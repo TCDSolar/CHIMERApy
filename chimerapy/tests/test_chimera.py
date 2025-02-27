@@ -18,5 +18,5 @@ def test_generate_candidate_mask():
     expected_shape = aia171.data.shape
     assert result_mask.shape == expected_shape, "Mask shape does not match expected shape."
     
-    expected_mask = mask_map.data
+    expected_mask = mask_map.data.astype(bool)
     np.testing.assert_allclose(result_mask, expected_mask, atol=0.1)
