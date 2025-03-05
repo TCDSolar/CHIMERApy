@@ -28,9 +28,9 @@ def generate_candidate_mask(m171, m193, m211):
     m193 = m193 / m193.exposure_time
     m211 = m211 / m211.exposure_time
 
-    threshold_171v193 = 0.6357
-    threshold_171v211 = 0.7
-    threshold_193v211 = 1.5102
+    threshold_171v193 = 1.5102
+    threshold_171v211 = 0.6357
+    threshold_193v211 = 0.7
 
     d171_min, d171_max = 1.2, 3.9
     d193_min, d193_max = 1.4, 3.0
