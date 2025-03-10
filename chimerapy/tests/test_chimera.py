@@ -1,29 +1,31 @@
-import os
-from pathlib import Path
+import numpy as np
+import pytest
+from sunpy.map import Map
 
-from parfive import Downloader
-
-from chimerapy.chimera import chimera_legacy
-
-INPUT_FILES = {
-    "aia171": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00171_fd_20160922_103010.fts.gz",
-    "aia193": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00193_fd_20160922_103041.fts.gz",
-    "aia211": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00211_fd_20160922_103046.fts.gz",
-    "hmi_mag": "https://solarmonitor.org/data/2016/09/22/fits/shmi/shmi_maglc_fd_20160922_094640.fts.gz",
-}
+from chimerapy.chimera import generate_candidate_mask
+from examples.paper_figures import mask_map
 
 
-def test_chimera(tmp_path):
-    _ = Downloader.simple_download(INPUT_FILES.values(), path=tmp_path)
-    os.chdir(tmp_path)
-    chimera_legacy()
+@pytest.fixture(scope="module")
+def m171():
+    return Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0171.fits")
 
-    test_summary_file = Path(__file__).parent / "test_ch_summary.txt"
-    with test_summary_file.open("r") as f:
-        test_summary_text = f.read()
 
-    ch_summary_file = tmp_path / "ch_summary.txt"
-    with ch_summary_file.open("r") as f:
-        ch_summary_text = f.read()
+@pytest.fixture(scope="module")
+def m193():
+    return Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0193.fits")
 
-    assert ch_summary_text == test_summary_text
+
+@pytest.fixture(scope="module")
+def m211():
+    return Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0211.fits")
+
+
+def test_generate_candidate_mask(m171, m193, m211):
+    result_mask = generate_candidate_mask(m171, m193, m211)
+
+    expected_shape = m171.data.shape
+    assert result_mask.shape == expected_shape, "Mask shape does not match expected shape."
+
+    expected_mask = mask_map.data.astype(bool)
+    np.testing.assert_allclose(result_mask, expected_mask)
