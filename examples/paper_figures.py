@@ -217,10 +217,9 @@ axes["hot_hist"].set_ylabel(193)
 #
 
 # From old IDL code
-threshold_171v193 = 0.6357
-threshold_171v211 = 0.7
-threshold_193v211 = 1.5102
-
+threshold_171v193 = 1.5102
+threshold_171v211 = 0.6357
+threshold_193v211 = 0.7
 # Equations of the form I_y = c * I_x**thres c by eye
 xx = np.linspace(0, 300, 500)
 fit171v193 = 2.25 * xx**threshold_171v193
