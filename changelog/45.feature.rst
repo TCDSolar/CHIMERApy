@@ -1,0 +1,1 @@
+Add function to take in 171, 193 and 211 AIA images and return candidate coronal hole mask.
