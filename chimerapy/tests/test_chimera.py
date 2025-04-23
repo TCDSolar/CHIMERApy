@@ -1,8 +1,9 @@
 import numpy as np
 import pytest
+from numpy.testing import assert_almost_equal
 from sunpy.map import Map
 
-from chimerapy.chimera import generate_candidate_mask
+from chimerapy.chimera import generate_candidate_mask, get_area_map
 from examples.paper_figures import mask_map
 
 
@@ -29,3 +30,9 @@ def test_generate_candidate_mask(m171, m193, m211):
 
     expected_mask = mask_map.data.astype(bool)
     np.testing.assert_allclose(result_mask, expected_mask)
+
+
+def test_get_area_map(m171):
+    area_map = get_area_map(m171)
+    total_area = area_map.sum()
+    assert_almost_equal(m171.rsun_meters**2 * np.pi * 2, total_area)
