@@ -67,8 +67,38 @@ def generate_candidate_mask(m171, m193, m211):
     return final_mask
 
 
-def get_area_map(map):
-    return np.array(1) * u.m**2
+def get_area_map(im_map: Map):
+    """
+    Calculate the physical area of each pixel on the Sun's surface.
+
+    Parameters
+    ----------
+    im_map : `~sunpy.map.Map`
+        Processed SunPy map.
+
+    Returns
+    -------
+    area_map : `~numpy.ndarray`
+        Array of physical areas (in m²) for each pixel on the Sun's surface.
+    """
+    coordinates = all_coordinates_from_map(im_map)
+    on_disk = coordinate_is_on_solar_disk(coordinates)
+
+    pixel_scale_arcsec = im_map.scale[0]
+    pixel_scale_rad = (pixel_scale_arcsec * u.arcsec).to(u.rad)
+    solar_radius_meters = im_map.rsun_meters
+
+    pixel_area = (pixel_scale_rad * solar_radius_meters)**2
+
+    cos_theta = np.sqrt(1 - (coordinates.Tx / im_map.rsun_obs)**2 - (coordinates.Ty / im_map.rsun_obs)**2)
+    cos_theta = np.clip(cos_theta, 0, 1)
+
+    cos_theta = u.Quantity(cos_theta, unit=u.dimensionless_unscaled)
+
+    area_map = np.zeros_like(im_map.data, dtype=np.float64)
+    area_map[on_disk] = (pixel_area / cos_theta[on_disk])
+
+    return area_map
 
 
 def calculate_cosine_correction(im_map: Map):
@@ -100,15 +130,17 @@ def calculate_cosine_correction(im_map: Map):
 
 
 @u.quantity_input()
-def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e10 * u.m**2):  # noqa: F821
+def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e10 * u.m**2):
     solar_radius = map_obj.rsun_meters
-    pixel_scale = map_obj.scale[0] * 1 * u.pixel
-    # Sun center approx flat over 1 pixel
-    pixel_size = pixel_scale.to_value(u.rad) * solar_radius
-    pixel_area = pixel_size**2
-
     cos_correction, on_disk = calculate_cosine_correction(map_obj)
-    area_map = pixel_area / cos_correction
+
+    pixel_scale_arcsec = map_obj.scale[0].value
+    pixel_scale_meters = (pixel_scale_arcsec * u.arcsec).to(u.rad).value * solar_radius
+    pixel_area_meters2 = pixel_scale_meters**2
+
+    corrected_pixel_area_meters2 = pixel_area_meters2 / cos_correction
+
+    min_area_pixels = (min_area / corrected_pixel_area_meters2).decompose()
 
     labeled_mask = measure.label(mask * on_disk)
     regions = measure.regionprops(labeled_mask)
@@ -116,7 +148,7 @@ def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e1
     filtered_regions = []
     for region in regions:
         region_mask = labeled_mask == region.label
-        region_surface_area = area_map[region_mask].sum()
+        region_surface_area = corrected_pixel_area_meters2[region_mask].sum()
         if region_surface_area >= min_area and not np.all(region_mask & on_disk):
             region.surface_area = region_surface_area
             filtered_regions.append(region)
@@ -139,13 +171,16 @@ def get_coronal_holes(filtered_regions, map_obj, labeled_mask):
         min_lat = heliographic_coords.lat.min()
         max_lat = heliographic_coords.lat.max()
 
-        extent_lon = max_lon - min_lon
-        extent_lat = max_lat - min_lat
+        eb = map_obj.pixel_to_world(*coords[coords[:, 1].argmin()][::-1] * u.pixel)
+        wb = map_obj.pixel_to_world(*coords[coords[:, 1].argmax()][::-1] * u.pixel)
+        extent_lon = wb.transform_to("heliographic_stonyhurst").lon - eb.transform_to("heliographic_stonyhurst").lon
+
+        sb = map_obj.pixel_to_world(*coords[coords[:, 0].argmin()][::-1] * u.pixel)
+        nb = map_obj.pixel_to_world(*coords[coords[:, 0].argmax()][::-1] * u.pixel)
+        extent_lat = nb.transform_to("heliographic_stonyhurst").lat - sb.transform_to("heliographic_stonyhurst").lat
 
         centroid = region.centroid
         centroid_world = map_obj.pixel_to_world(centroid[1] * u.pix, centroid[0] * u.pix)
-
-        # breakpoint()
 
         coronal_holes.append(
             {
@@ -201,8 +236,12 @@ def chimera(m171, m193, m211):
             f"Area = {ch['area_meters2']:.2e}, "
             f"Centroid in arcseconds = {ch['centroid_world'].Tx.value:.2f}, {ch['centroid_world'].Ty.value:.2f}, "
             f"E-W Extent = {ch['extent_lon']:.2f} °, "
-            f"N-S Extent = {ch['extent_lat']:.2f} °"
-        )
+            f"N-S Extent = {ch['extent_lat']:.2f} °, "
+            f"Min Lon = {ch['min_lon']:.2f} °, "
+            f"Max Lon = {ch['max_lon']:.2f} °, " 
+            f"Min Lat = {ch['min_lat']:.2f} °, "
+            f"Max Lat = {ch['max_lat']:.2f} °"
+            )
 
 
 if __name__ == "__main__":

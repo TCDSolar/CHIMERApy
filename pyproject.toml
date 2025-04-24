@@ -115,8 +115,8 @@ norecursedirs = [
     'docs/generated',
     ]
 doctest_plus = "enabled"
-text_file_format = "rst"
-addopts = "--doctest-rst"
+text_file_format = "py"
+addopts = "--doctest-modules"
 
 [tool.coverage.run]
 omit = [
