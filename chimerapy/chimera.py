@@ -2,9 +2,8 @@ import numpy as np
 from matplotlib import colors
 from numpy.typing import NDArray
 from skimage import measure
-from sunpy.map import Map, all_coordinates_from_map, coordinate_is_on_solar_disk
-import matplotlib.pyplot as plt
 from skimage.draw import polygon2mask
+from sunpy.map import Map, all_coordinates_from_map, coordinate_is_on_solar_disk
 
 import astropy.units as u
 from astropy.units import Quantity
@@ -69,9 +68,9 @@ def generate_candidate_mask(m171, m193, m211):
     return final_mask
 
 
-def get_area_map(im_map: Map):
+def calculate_area_map(im_map: Map):
     """
-    Calculate the physical area of each pixel on the Sun's surface.
+    Generate map where each pixel is the area the pixel subtends on the sun.
 
     Parameters
     ----------
@@ -94,15 +93,15 @@ def get_area_map(im_map: Map):
     ratio = (radial_angle / im_map.rsun_obs).decompose()
     theta = np.arcsin(ratio)
     cos_correction = np.cos(theta)
+
     area_map = np.full(im_map.data.shape, 0) << pixel_area.unit
     area_map[on_disk] = pixel_area / cos_correction
-
     return area_map, on_disk
 
 
 @u.quantity_input()
-def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e4 * u.Mm**2):
-    area_map, on_disk = get_area_map(map_obj)
+def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e4 * u.Mm**2):  # noqa: F821
+    area_map, on_disk = calculate_area_map(map_obj)
 
     labeled_mask = measure.label(mask * on_disk)
     regions = measure.regionprops(labeled_mask)
@@ -195,7 +194,7 @@ def map_threshold(im_map):
 
 def chimera(m171, m193, m211):
     ch_mask = generate_candidate_mask(m171, m193, m211)
-    labeled_mask, filtered_regions = filter_by_area(ch_mask, m171)
+    labeled_mask, filtered_regions = filter_by_area(ch_mask, m171, min_area=1e10 * u.m**2)
 
     coronal_holes = get_coronal_holes(filtered_regions, m171, labeled_mask)
 
