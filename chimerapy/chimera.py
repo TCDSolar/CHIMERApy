@@ -84,19 +84,28 @@ def get_area_map(im_map: Map):
     coordinates = all_coordinates_from_map(im_map)
     on_disk = coordinate_is_on_solar_disk(coordinates)
 
-    pixel_scale_arcsec = im_map.scale[0]
-    pixel_scale_rad = (pixel_scale_arcsec * u.arcsec).to(u.rad)
-    solar_radius_meters = im_map.rsun_meters
+    pixel_scale_arcsec_x = im_map.scale[0].value
+    pixel_scale_arcsec_y = im_map.scale[1].value
 
-    pixel_area = (pixel_scale_rad * solar_radius_meters)**2
+    distance_to_sun = im_map.dsun.value
 
-    cos_theta = np.sqrt(1 - (coordinates.Tx / im_map.rsun_obs)**2 - (coordinates.Ty / im_map.rsun_obs)**2)
+    pixel_scale_rad_x = pixel_scale_arcsec_x * np.pi / (180.0 * 3600.0)
+    pixel_scale_rad_y = pixel_scale_arcsec_y * np.pi / (180.0 * 3600.0)
+
+    pixel_size_x_meters = distance_to_sun * np.tan(pixel_scale_rad_x)
+    pixel_size_y_meters = distance_to_sun * np.tan(pixel_scale_rad_y)
+
+    pixel_area_meters2 = pixel_size_x_meters * pixel_size_y_meters * u.m**2
+
+    coords = all_coordinates_from_map(im_map)
+    x = coords.Tx / im_map.rsun_obs
+    y = coords.Ty / im_map.rsun_obs
+
+    cos_theta = np.sqrt(1 - x**2 - y**2)
     cos_theta = np.clip(cos_theta, 0, 1)
 
-    cos_theta = u.Quantity(cos_theta, unit=u.dimensionless_unscaled)
-
-    area_map = np.zeros_like(im_map.data, dtype=np.float64)
-    area_map[on_disk] = (pixel_area / cos_theta[on_disk])
+    area_map = np.zeros_like(im_map.data, dtype=np.float64) * u.m**2
+    area_map[on_disk] = pixel_area_meters2 / cos_theta[on_disk]
 
     return area_map
 
@@ -122,7 +131,7 @@ def calculate_cosine_correction(im_map: Map):
 
     radial_angle = np.arccos(np.cos(coordinates.Tx) * np.cos(coordinates.Ty))
     cos_cor_ratio = (radial_angle / im_map.rsun_obs).decompose()
-    cos_cor_ratio = np.clip(cos_cor_ratio, -1, 1)  # Clip to on disk values
+    cos_cor_ratio = np.clip(cos_cor_ratio, -1, 1)
 
     cos_correction = 1 / (np.cos(np.arcsin(cos_cor_ratio)))
 
@@ -218,7 +227,8 @@ def map_threshold(im_map):
     im_map : `~sunpy.map.Map`
         Processed magnetogram map.
     """
-    im_map.data[~coordinate_is_on_solar_disk(all_coordinates_from_map(im_map))] = np.nan
+    on_disk = coordinate_is_on_solar_disk(all_coordinates_from_map(im_map))
+    im_map.data[~on_disk] = np.nan
     im_map.cmap.set_bad("k")
     im_map.plot_settings["norm"] = colors.Normalize(vmin=-200, vmax=200)
     return im_map
@@ -238,7 +248,7 @@ def chimera(m171, m193, m211):
             f"E-W Extent = {ch['extent_lon']:.2f} °, "
             f"N-S Extent = {ch['extent_lat']:.2f} °, "
             f"Min Lon = {ch['min_lon']:.2f} °, "
-            f"Max Lon = {ch['max_lon']:.2f} °, " 
+            f"Max Lon = {ch['max_lon']:.2f} °, "
             f"Min Lat = {ch['min_lat']:.2f} °, "
             f"Max Lat = {ch['max_lat']:.2f} °"
             )
