@@ -80,30 +80,30 @@ def calculate_area_map(im_map: Map):
     Returns
     -------
     area_map : `~numpy.ndarray`
-        Array of physical areas (in m²) for each pixel on the Sun's surface.
+        Surface area each pixel subtends on the sun.
     """
     coordinates = all_coordinates_from_map(im_map)
-    on_disk = coordinate_is_on_solar_disk(coordinates)
+    disk_mask = coordinate_is_on_solar_disk(coordinates)
 
     pixel_scale = im_map.scale[0] * 1 * u.pixel
     pixel_size = pixel_scale.to_value(u.rad) * im_map.dsun
     pixel_area = pixel_size**2
 
-    radial_angle = np.arccos(np.cos(coordinates.Tx[on_disk]) * np.cos(coordinates.Ty[on_disk]))
+    radial_angle = np.arccos(np.cos(coordinates.Tx[disk_mask]) * np.cos(coordinates.Ty[disk_mask]))
     ratio = (radial_angle / im_map.rsun_obs).decompose()
     theta = np.arcsin(ratio)
     cos_correction = np.cos(theta)
 
     area_map = np.full(im_map.data.shape, 0) << pixel_area.unit
-    area_map[on_disk] = pixel_area / cos_correction
-    return area_map, on_disk
+    area_map[disk_mask] = pixel_area / cos_correction
+    return area_map, disk_mask
 
 
 @u.quantity_input()
 def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e4 * u.Mm**2):  # noqa: F821
-    area_map, on_disk = calculate_area_map(map_obj)
+    area_map, disk_mask = calculate_area_map(map_obj)
 
-    labeled_mask = measure.label(mask * on_disk)
+    labeled_mask = measure.label(mask * disk_mask)
     regions = measure.regionprops(labeled_mask)
 
     filtered_regions = []
@@ -115,7 +115,7 @@ def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e4
             filled_region_mask = polygon2mask(region_mask.shape, encompassing_contour)
             region_surface_area = area_map[region_mask].sum()
             labeled_mask[filled_region_mask] = region.label
-            if region_surface_area >= min_area and not np.all(region_mask & on_disk):
+            if region_surface_area >= min_area and not np.all(region_mask & disk_mask):
                 region.surface_area = region_surface_area
                 filtered_regions.append(region)
             else:

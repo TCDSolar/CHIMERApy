@@ -4,6 +4,7 @@ from numpy.testing import assert_allclose
 from sunpy.map import Map, all_coordinates_from_map
 
 import astropy.units as u
+from astropy.tests.helper import assert_quantity_allclose
 
 from chimerapy.chimera import calculate_area_map, filter_by_area, generate_candidate_mask
 
@@ -65,7 +66,7 @@ def test_filter_by_area_position(m171, pos):
     hpc_coords = all_coordinates_from_map(m171)
     hgs_coords = hpc_coords.transform_to("heliographic_stonyhurst")
     ref = m171.reference_coordinate
-    center = ref.transform_to("heliographic_stonyhurst").spherical_offsets_by(pos, 0 * u.deg)
+    center = ref.transform_to("heliographic_stonyhurst").spherical_offsets_by(0 * u.deg, pos)
     radial_angle = hgs_coords.separation(center)
     data = np.zeros_like(m171.data)
     data[radial_angle <= theta] = 1
@@ -75,4 +76,4 @@ def test_filter_by_area_position(m171, pos):
     if u.allclose(pos, 90 * u.deg):
         expected_area *= 0.5  # half behind the limb
         rtol = 0.10  # more error as area per pixel is huge
-    assert_allclose(regions[0].surface_area, expected_area, rtol=rtol)
+    assert_quantity_allclose(regions[0].surface_area, expected_area, rtol=rtol)
