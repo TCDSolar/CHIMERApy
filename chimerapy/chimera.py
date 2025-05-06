@@ -3,6 +3,8 @@ from matplotlib import colors
 from numpy.typing import NDArray
 from skimage import measure
 from sunpy.map import Map, all_coordinates_from_map, coordinate_is_on_solar_disk
+import matplotlib.pyplot as plt
+from skimage.draw import polygon2mask
 
 import astropy.units as u
 from astropy.units import Quantity
@@ -84,72 +86,23 @@ def get_area_map(im_map: Map):
     coordinates = all_coordinates_from_map(im_map)
     on_disk = coordinate_is_on_solar_disk(coordinates)
 
-    pixel_scale_arcsec_x = im_map.scale[0].value
-    pixel_scale_arcsec_y = im_map.scale[1].value
+    pixel_scale = im_map.scale[0] * 1 * u.pixel
+    pixel_size = pixel_scale.to_value(u.rad) * im_map.dsun
+    pixel_area = pixel_size**2
 
-    distance_to_sun = im_map.dsun.value
+    radial_angle = np.arccos(np.cos(coordinates.Tx[on_disk]) * np.cos(coordinates.Ty[on_disk]))
+    ratio = (radial_angle / im_map.rsun_obs).decompose()
+    theta = np.arcsin(ratio)
+    cos_correction = np.cos(theta)
+    area_map = np.full(im_map.data.shape, 0) << pixel_area.unit
+    area_map[on_disk] = pixel_area / cos_correction
 
-    pixel_scale_rad_x = pixel_scale_arcsec_x * np.pi / (180.0 * 3600.0)
-    pixel_scale_rad_y = pixel_scale_arcsec_y * np.pi / (180.0 * 3600.0)
-
-    pixel_size_x_meters = distance_to_sun * np.tan(pixel_scale_rad_x)
-    pixel_size_y_meters = distance_to_sun * np.tan(pixel_scale_rad_y)
-
-    pixel_area_meters2 = pixel_size_x_meters * pixel_size_y_meters * u.m**2
-
-    coords = all_coordinates_from_map(im_map)
-    x = coords.Tx / im_map.rsun_obs
-    y = coords.Ty / im_map.rsun_obs
-
-    cos_theta = np.sqrt(1 - x**2 - y**2)
-    cos_theta = np.clip(cos_theta, 0, 1)
-
-    area_map = np.zeros_like(im_map.data, dtype=np.float64) * u.m**2
-    area_map[on_disk] = pixel_area_meters2 / cos_theta[on_disk]
-
-    return area_map
-
-
-def calculate_cosine_correction(im_map: Map):
-    """
-    Find the cosine correction values for on-disk pixels.
-
-    Parameters
-    ----------
-    im_map : `~sunpy.map.Map`
-        Processed SunPy map.
-
-    Returns
-    -------
-    cos_correction : `~numpy.ndarray`
-        Array of cosine correction factors for each pixel. Values greater than a threshold (edge) are set to 1.
-    """
-    coordinates = all_coordinates_from_map(im_map)
-    on_disk = coordinate_is_on_solar_disk(coordinates)
-
-    cos_correction = np.ones_like(im_map.data)
-
-    radial_angle = np.arccos(np.cos(coordinates.Tx) * np.cos(coordinates.Ty))
-    cos_cor_ratio = (radial_angle / im_map.rsun_obs).decompose()
-    cos_cor_ratio = np.clip(cos_cor_ratio, -1, 1)
-
-    cos_correction = 1 / (np.cos(np.arcsin(cos_cor_ratio)))
-
-    return cos_correction, on_disk
+    return area_map, on_disk
 
 
 @u.quantity_input()
-def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e10 * u.m**2):
-    solar_radius = map_obj.rsun_meters
-    cos_correction, on_disk = calculate_cosine_correction(map_obj)
-
-    pixel_scale_arcsec = map_obj.scale[0].value
-    pixel_scale_meters = (pixel_scale_arcsec * u.arcsec).to(u.rad).value * solar_radius
-    pixel_area_meters2 = pixel_scale_meters**2
-
-    corrected_pixel_area_meters2 = pixel_area_meters2 / cos_correction
-
-    min_area_pixels = (min_area / corrected_pixel_area_meters2).decompose()
+def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e4 * u.Mm**2):
+    area_map, on_disk = get_area_map(map_obj)
 
     labeled_mask = measure.label(mask * on_disk)
     regions = measure.regionprops(labeled_mask)
@@ -157,12 +110,19 @@ def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e1
     filtered_regions = []
     for region in regions:
         region_mask = labeled_mask == region.label
-        region_surface_area = corrected_pixel_area_meters2[region_mask].sum()
-        if region_surface_area >= min_area and not np.all(region_mask & on_disk):
-            region.surface_area = region_surface_area
-            filtered_regions.append(region)
-        else:
-            labeled_mask[region_mask] = 0
+        contours = measure.find_contours(region_mask)
+        if contours:
+            encompassing_contour = sorted(contours, key=lambda x: x.size, reverse=True)[0]
+            filled_region_mask = polygon2mask(region_mask.shape, encompassing_contour)
+            region_surface_area = area_map[region_mask].sum()
+            labeled_mask[filled_region_mask] = region.label
+            if region_surface_area >= min_area and not np.all(region_mask & on_disk):
+                region.surface_area = region_surface_area
+                filtered_regions.append(region)
+            else:
+                labeled_mask[region_mask] = 0
+
+    filtered_regions = sorted(filtered_regions, key=lambda region: region.surface_area, reverse=True)
 
     return labeled_mask, filtered_regions
 
@@ -173,20 +133,19 @@ def get_coronal_holes(filtered_regions, map_obj, labeled_mask):
     for region in filtered_regions:
         coords = region.coords
         world_coords = map_obj.pixel_to_world(coords[:, 1] * u.pix, coords[:, 0] * u.pix)
-        heliographic_coords = world_coords.transform_to("heliographic_stonyhurst")
 
-        min_lon = heliographic_coords.lon.min()
-        max_lon = heliographic_coords.lon.max()
-        min_lat = heliographic_coords.lat.min()
-        max_lat = heliographic_coords.lat.max()
+        wb = world_coords[coords[:, 1].argmax()]
+        eb = world_coords[coords[:, 1].argmin()]
 
-        eb = map_obj.pixel_to_world(*coords[coords[:, 1].argmin()][::-1] * u.pixel)
-        wb = map_obj.pixel_to_world(*coords[coords[:, 1].argmax()][::-1] * u.pixel)
-        extent_lon = wb.transform_to("heliographic_stonyhurst").lon - eb.transform_to("heliographic_stonyhurst").lon
+        nb = world_coords[coords[:, 0].argmax()]
+        sb = world_coords[coords[:, 0].argmin()]
 
-        sb = map_obj.pixel_to_world(*coords[coords[:, 0].argmin()][::-1] * u.pixel)
-        nb = map_obj.pixel_to_world(*coords[coords[:, 0].argmax()][::-1] * u.pixel)
-        extent_lat = nb.transform_to("heliographic_stonyhurst").lat - sb.transform_to("heliographic_stonyhurst").lat
+        extent_lon = (
+            wb.transform_to("heliographic_stonyhurst").lon - eb.transform_to("heliographic_stonyhurst").lon
+        )
+        extent_lat = (
+            sb.transform_to("heliographic_stonyhurst").lat - nb.transform_to("heliographic_stonyhurst").lat
+        )
 
         centroid = region.centroid
         centroid_world = map_obj.pixel_to_world(centroid[1] * u.pix, centroid[0] * u.pix)
@@ -197,16 +156,16 @@ def get_coronal_holes(filtered_regions, map_obj, labeled_mask):
                 "area_meters2": region.surface_area,
                 "centroid_world": centroid_world,
                 "centroid_heliographic": centroid_world.transform_to("heliographic_stonyhurst"),
-                "min_lon": min_lon,
-                "max_lon": max_lon,
-                "min_lat": min_lat,
-                "max_lat": max_lat,
+                "eb": eb,
+                "wb": wb,
+                "sb": sb,
+                "nb": nb,
                 "extent_lon": extent_lon,
                 "extent_lat": extent_lat,
             }
         )
 
-    coronal_holes = sorted(coronal_holes, key=lambda ch: ch["area_pixels"], reverse=True)
+    coronal_holes = sorted(coronal_holes, key=lambda ch: ch["area_meters2"], reverse=True)
     for idx, ch in enumerate(coronal_holes, start=1):
         ch["id"] = idx
 
@@ -236,26 +195,43 @@ def map_threshold(im_map):
 
 def chimera(m171, m193, m211):
     ch_mask = generate_candidate_mask(m171, m193, m211)
-    labeled_mask, filtered_regions = filter_by_area(ch_mask, m171, min_area=1e10 * u.m**2)
+    labeled_mask, filtered_regions = filter_by_area(ch_mask, m171)
 
     coronal_holes = get_coronal_holes(filtered_regions, m171, labeled_mask)
 
     for ch in coronal_holes:
         print(
             f"CH {ch['id']}: "
-            f"Area = {ch['area_meters2']:.2e}, "
-            f"Centroid in arcseconds = {ch['centroid_world'].Tx.value:.2f}, {ch['centroid_world'].Ty.value:.2f}, "
+            f"Area = {ch['area_meters2'].to('Mm**2'):.2e}, "
+            f"Centroid HPC: {ch['centroid_world'].Tx.value:.2f},{ch['centroid_world'].Ty.value:.2f}, "
+            f"Centroid HGS: {ch['centroid_heliographic'].lon.value:.2f},{ch['centroid_heliographic'].lat.value:.2f}, "
+            f"EB: {ch['eb'].Tx.value:.2f},{ch['eb'].Ty.value:.2f}, "
+            f"WB: {ch['wb'].Tx.value:.2f},{ch['wb'].Ty.value:.2f}, "
+            f"NB: {ch['nb'].Tx.value:.2f},{ch['nb'].Ty.value:.2f}, "
+            f"SB: {ch['sb'].Tx.value:.2f},{ch['sb'].Ty.value:.2f}, "
+            f"E: {ch['eb'].transform_to('heliographic_stonyhurst').lon.value:.2f}-W:{ch['wb'].transform_to('heliographic_stonyhurst').lon.value:.2f}, "
             f"E-W Extent = {ch['extent_lon']:.2f} °, "
+            f"N: {ch['nb'].transform_to('heliographic_stonyhurst').lat.value:.2f}, S:{ch['sb'].transform_to('heliographic_stonyhurst').lat.value:.2f}"
             f"N-S Extent = {ch['extent_lat']:.2f} °, "
-            f"Min Lon = {ch['min_lon']:.2f} °, "
-            f"Max Lon = {ch['max_lon']:.2f} °, "
-            f"Min Lat = {ch['min_lat']:.2f} °, "
-            f"Max Lat = {ch['max_lat']:.2f} °"
             )
+    return ch_mask, labeled_mask
 
 
 if __name__ == "__main__":
     m171 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0171.fits")
     m193 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0193.fits")
     m211 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0211.fits")
-    chimera(m171, m193, m211)
+    ch_mask, labeled_mask = chimera(m171, m193, m211)
+
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5), subplot_kw={'projection': m171})
+
+    m171.plot(axes=axes[0])
+    axes[0].set_title('AIA 171 with Contours')
+
+    axes[0].contour(labeled_mask, levels=[0.5], colors='white', linewidths=1)
+
+    axes[1].imshow(ch_mask, origin='lower', cmap='gray')
+    axes[1].set_title('Chimera Mask')
+
+    plt.tight_layout()
+    plt.show()
