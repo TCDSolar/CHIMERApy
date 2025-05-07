@@ -8,10 +8,12 @@ from sunpy.map import Map, all_coordinates_from_map, coordinate_is_on_solar_disk
 import astropy.units as u
 from astropy.units import Quantity
 
+from chimerapy import log
+
 
 def generate_candidate_mask(m171, m193, m211):
     r"""
-    Generate Chimera mask.
+    Generate coronal hole candidate mask based image ratios.
 
     Parameters
     ----------
@@ -52,17 +54,18 @@ def generate_candidate_mask(m171, m193, m211):
     d211_clipped = np.clip(np.log10(m211.data), d211_min, d211_max)
     d211_clipped_scaled = ((d211_clipped - d211_min) / (d211_max - d211_min)) * 255
 
-    mask_171_211 = (d171_clipped_scaled / d211_clipped_scaled) >= (
-        (np.mean(m171.data[disk_mask]) * threshold_171v211) / np.mean(m211.data[disk_mask])
-    )
+    with np.errstate(divide="ignore", invalid="ignore"):
+        mask_171_211 = (d171_clipped_scaled / d211_clipped_scaled) >= (
+            (np.mean(m171.data[disk_mask]) * threshold_171v211) / np.mean(m211.data[disk_mask])
+        )
 
-    mask_211_193 = (d211_clipped_scaled + d193_clipped_scaled) < (
-        threshold_193v211 * (np.mean(m193.data[disk_mask]) + np.mean(m211.data[disk_mask]))
-    )
+        mask_211_193 = (d211_clipped_scaled + d193_clipped_scaled) < (
+            threshold_193v211 * (np.mean(m193.data[disk_mask]) + np.mean(m211.data[disk_mask]))
+        )
 
-    mask_171_193 = (d171_clipped_scaled / d193_clipped_scaled) >= (
-        (np.mean(m171.data[disk_mask]) * threshold_171v193) / np.mean(m193.data[disk_mask])
-    )
+        mask_171_193 = (d171_clipped_scaled / d193_clipped_scaled) >= (
+            (np.mean(m171.data[disk_mask]) * threshold_171v193) / np.mean(m193.data[disk_mask])
+        )
 
     final_mask = mask_171_211 * mask_211_193 * mask_171_193
     return final_mask
@@ -70,7 +73,7 @@ def generate_candidate_mask(m171, m193, m211):
 
 def calculate_area_map(im_map: Map):
     """
-    Generate map where each pixel is the area the pixel subtends on the sun.
+    Generate map where each pixel is the area the pixel subtends on the solar surface.
 
     Parameters
     ----------
@@ -86,7 +89,7 @@ def calculate_area_map(im_map: Map):
     disk_mask = coordinate_is_on_solar_disk(coordinates)
 
     pixel_scale = im_map.scale[0] * 1 * u.pixel
-    pixel_size = pixel_scale.to_value(u.rad) * im_map.dsun
+    pixel_size = np.arcsin(pixel_scale / im_map.rsun_obs).to_value(u.rad) * im_map.rsun_meters
     pixel_area = pixel_size**2
 
     radial_angle = np.arccos(np.cos(coordinates.Tx[disk_mask]) * np.cos(coordinates.Ty[disk_mask]))
@@ -100,10 +103,24 @@ def calculate_area_map(im_map: Map):
 
 
 @u.quantity_input()
-def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e4 * u.Mm**2):  # noqa: F821
+def filter_ch(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e4 * u.Mm**2, on_disk: bool = True):  # noqa: F821
+    r"""
+    Filter coronal hole candidate masks
+
+    Parameters
+    ----------
+    mask :
+        Candidate CH mask
+    map_obj
+
+    min_area
+        Remove CH with area below this value.
+    on_disk :
+        Remove CHs that are not on the disk (above the limb)
+    """
     area_map, disk_mask = calculate_area_map(map_obj)
 
-    labeled_mask = measure.label(mask * disk_mask)
+    labeled_mask = measure.label(mask * disk_mask if on_disk else mask)
     regions = measure.regionprops(labeled_mask)
 
     filtered_regions = []
@@ -113,12 +130,13 @@ def filter_by_area(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e4
         if contours:
             encompassing_contour = sorted(contours, key=lambda x: x.size, reverse=True)[0]
             filled_region_mask = polygon2mask(region_mask.shape, encompassing_contour)
-            region_surface_area = area_map[region_mask].sum()
+            region_surface_area = area_map[filled_region_mask].sum()
             labeled_mask[filled_region_mask] = region.label
             if region_surface_area >= min_area and not np.all(region_mask & disk_mask):
                 region.surface_area = region_surface_area
                 filtered_regions.append(region)
             else:
+                log.debug(f"Removing CH region {region.label}")
                 labeled_mask[region_mask] = 0
 
     filtered_regions = sorted(filtered_regions, key=lambda region: region.surface_area, reverse=True)
@@ -133,11 +151,11 @@ def get_coronal_holes(filtered_regions, map_obj, labeled_mask):
         coords = region.coords
         world_coords = map_obj.pixel_to_world(coords[:, 1] * u.pix, coords[:, 0] * u.pix)
 
-        wb = world_coords[coords[:, 1].argmax()]
-        eb = world_coords[coords[:, 1].argmin()]
+        wb = world_coords[np.nanargmax(world_coords.Tx)]
+        eb = world_coords[np.nanargmin(world_coords.Tx)]
 
-        nb = world_coords[coords[:, 0].argmax()]
-        sb = world_coords[coords[:, 0].argmin()]
+        nb = world_coords[np.nanargmax(world_coords.Ty)]
+        sb = world_coords[np.nanargmin(world_coords.Ty)]
 
         extent_lon = (
             wb.transform_to("heliographic_stonyhurst").lon - eb.transform_to("heliographic_stonyhurst").lon
@@ -194,7 +212,7 @@ def map_threshold(im_map):
 
 def chimera(m171, m193, m211):
     ch_mask = generate_candidate_mask(m171, m193, m211)
-    labeled_mask, filtered_regions = filter_by_area(ch_mask, m171, min_area=1e10 * u.m**2)
+    labeled_mask, filtered_regions = filter_ch(ch_mask, m171)
 
     coronal_holes = get_coronal_holes(filtered_regions, m171, labeled_mask)
 
@@ -220,17 +238,4 @@ if __name__ == "__main__":
     m171 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0171.fits")
     m193 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0193.fits")
     m211 = Map("https://jsoc1.stanford.edu/data/aia/synoptic/2016/10/31/H0200/AIA20161031_0232_0211.fits")
-    ch_mask, labeled_mask = chimera(m171, m193, m211)
-
-    fig, axes = plt.subplots(1, 2, figsize=(15, 5), subplot_kw={'projection': m171})
-
-    m171.plot(axes=axes[0])
-    axes[0].set_title('AIA 171 with Contours')
-
-    axes[0].contour(labeled_mask, levels=[0.5], colors='white', linewidths=1)
-
-    axes[1].imshow(ch_mask, origin='lower', cmap='gray')
-    axes[1].set_title('Chimera Mask')
-
-    plt.tight_layout()
-    plt.show()
+    chimera(m171, m193, m211)

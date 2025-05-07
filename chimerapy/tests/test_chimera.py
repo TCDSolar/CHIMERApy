@@ -6,7 +6,7 @@ from sunpy.map import Map, all_coordinates_from_map
 import astropy.units as u
 from astropy.tests.helper import assert_quantity_allclose
 
-from chimerapy.chimera import calculate_area_map, filter_by_area, generate_candidate_mask
+from chimerapy.chimera import calculate_area_map, filter_ch, generate_candidate_mask
 
 
 @pytest.fixture(scope="module")
@@ -36,9 +36,7 @@ def test_generate_candidate_mask(m171, m193, m211):
     np.testing.assert_allclose(result_mask, expected_mask)
 
 
-def test_calculate_area_map(
-    m171,
-):
+def test_calculate_area_map(m171):
     area_map, disk_mask = calculate_area_map(m171)
     total_area = area_map.sum()
     hemi_sphere_area = 2 * np.pi * m171.rsun_meters**2
@@ -54,7 +52,7 @@ def test_filter_by_area_size(m171, theta):
     data = np.zeros_like(m171.data)
     data[radial_angle <= theta] = 1
     m171.data[:, :] = data
-    label_mask, regions = filter_by_area(data, m171, min_area=0 * u.m**2)
+    label_mask, regions = filter_ch(data, m171, min_area=0 * u.m**2)
     expected_area = 2 * np.pi * (1 - np.cos(theta)) * m171.rsun_meters**2
     assert_allclose(regions[0].surface_area, expected_area, rtol=0.01)
 
@@ -71,7 +69,7 @@ def test_filter_by_area_position(m171, pos):
     data = np.zeros_like(m171.data)
     data[radial_angle <= theta] = 1
     m171.data[:, :] = data
-    label_mask, regions = filter_by_area(data, m171, min_area=0 * u.m**2)
+    label_mask, regions = filter_ch(data, m171, min_area=0 * u.m**2)
     expected_area = 2 * np.pi * (1 - np.cos(theta)) * m171.rsun_meters**2
     if u.allclose(pos, 90 * u.deg):
         expected_area *= 0.5  # half behind the limb
