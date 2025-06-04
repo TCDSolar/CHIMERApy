@@ -70,9 +70,9 @@ def m171(p171):
     return map_fix_cunit(p171[0])
 
 
-def test_chimera(tmp_path, p171, p193, m211, pmag):
+def test_chimera(tmp_path, p171, p193, p211, pmag):
     os.chdir(tmp_path)
-    chimera_legacy(p171, p193, m211, pmag)
+    chimera_legacy(p171, p193, p211, pmag)
 
     test_summary_file = Path(__file__).parent / "test_ch_summary.txt"
     with test_summary_file.open("r") as f:

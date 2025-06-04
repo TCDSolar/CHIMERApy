@@ -242,7 +242,7 @@ def chimera(im171, im193, im211, imhmi):
         if len(cont[i]) <= 100:
             continue
         area = 0.5 * np.abs(
-            np.dot(cont[i][:, 0, 0], np.roll(cont[i][:, 0, 0], 1))
+            np.dot(cont[i][:, 0, 0], np.roll(cont[i][:, 0, 1], 1))
             - np.dot(cont[i][:, 0, 1], np.roll(cont[i][:, 0, 0], 1))
         )
         arcar = area * (dattoarc**2)
