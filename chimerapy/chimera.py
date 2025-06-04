@@ -230,7 +230,7 @@ def chimera(m171, m193, m211):
             f"E-W Extent = {ch['extent_lon']:.2f} °, "
             f"N: {ch['nb'].transform_to('heliographic_stonyhurst').lat.value:.2f}, S:{ch['sb'].transform_to('heliographic_stonyhurst').lat.value:.2f}"
             f"N-S Extent = {ch['extent_lat']:.2f} °, "
-            )
+        )
     return ch_mask, labeled_mask
 
 
