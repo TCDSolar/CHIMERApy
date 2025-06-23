@@ -18,6 +18,8 @@ from astropy import wcs
 from astropy.io import fits
 from astropy.modeling.models import Gaussian2D
 
+from chimerapy import log
+
 
 def chimera_legacy(im171=None, im193=None, im211=None, imhmi=None):
     file_path = "./"
@@ -242,6 +244,7 @@ def chimera(im171, im193, im211, imhmi):
         # =====only takes values of minimum surface length and calculates area======
 
         if len(cont[i]) <= 100:
+            log.debug(f"Removing region {i} as too short/small")
             continue
         area = 0.5 * np.abs(
             np.dot(cont[i][:, 0, 0], np.roll(cont[i][:, 0, 1], 1))
@@ -269,6 +272,7 @@ def chimera(im171, im193, im211, imhmi):
                 ]
                 > 0
             ):
+                log.debug(f"Removing region {i} as quiet sun region encompassed by coronal holes.")
                 mahotas.polygon.fill_polygon(np.array(list(zip(cont[i][:, 0, 1], cont[i][:, 0, 0]))), slate)
                 iarr[np.where(slate == 1)] = 0
                 slate[:] = 0
@@ -286,6 +290,7 @@ def chimera(im171, im193, im211, imhmi):
                     mahotas.polygon.fill_polygon(
                         np.array(list(zip(cont[i][:, 0, 1], cont[i][:, 0, 0]))), offarr
                     )
+                    log.debug(f"Identified region {i} as off limb")
                 else:
                     # =====classifies on disk coronal holes=======
 
@@ -323,11 +328,13 @@ def chimera(im171, im193, im211, imhmi):
                         <= 10
                         and arcar < 9000
                     ):
+                        log.debug(f"Removig region {i} magnetic cuttoff 1.")
                         continue
                     if (
                         np.absolute(np.mean(datm[pos[:, 0], pos[:, 1]])) < garr[int(cent[0]), int(cent[1])]
                         and arcar < 40000
                     ):
+                        log.debug(f"Removig region {i} magnetic cuttoff 2.")
                         continue
                     iarr[poslin] = ident
 
