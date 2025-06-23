@@ -47,18 +47,19 @@ def chimera(im171, im193, im211, imhmi):
         print("Not all required files present")
         sys.exit()
     # =====Reads in data and resizes images=====
+    ext_num = 0 if im171[0].endswith("fts.gz") else 1
     x = np.arange(0, 1024) * 4
     hdu_number = 0
-    heda = fits.getheader(im171[0], hdu_number)
-    data = fits.getdata(im171[0], ext=0) / (heda["EXPTIME"])
+    heda = fits.getheader(im171[0], ext_num)
+    data = fits.getdata(im171[0], ext=ext_num) / (heda["EXPTIME"])
     dn = RectBivariateSpline(x, x, data, kx=1, ky=1)
     data = dn(np.arange(0, 4096), np.arange(0, 4096))
-    hedb = fits.getheader(im193[0], hdu_number)
-    datb = fits.getdata(im193[0], ext=0) / (hedb["EXPTIME"])
+    hedb = fits.getheader(im193[0], ext_num)
+    datb = fits.getdata(im193[0], ext=ext_num) / (hedb["EXPTIME"])
     dn = RectBivariateSpline(x, x, datb, kx=1, ky=1)
     datb = dn(np.arange(0, 4096), np.arange(0, 4096))
-    hedc = fits.getheader(im211[0], hdu_number)
-    datc = fits.getdata(im211[0], ext=0) / (hedc["EXPTIME"])
+    hedc = fits.getheader(im211[0], ext_num)
+    datc = fits.getdata(im211[0], ext=ext_num) / (hedc["EXPTIME"])
     dn = RectBivariateSpline(x, x, datc, kx=1, ky=1)
     datc = dn(np.arange(0, 4096), np.arange(0, 4096))
     hedm = fits.getheader(imhmi[0], hdu_number)
@@ -69,7 +70,7 @@ def chimera(im171, im193, im211, imhmi):
         datm = np.rot90(np.rot90(datm))
     # =====Specifies solar radius and calculates conversion value of pixel to arcsec=====
     s = np.shape(data)
-    rs = heda["rsun"]
+    rs = heda["rsun"] if "rsun" in heda else heda["rsun_obs"]
     if hedb["ctype1"] != "solar_x ":
         hedb["ctype1"] = "solar_x "
         hedb["ctype2"] = "solar_y "
@@ -96,9 +97,10 @@ def chimera(im171, im193, im211, imhmi):
     convermul = dattoarc / hedm["cdelt1"]
     # =====Alternative coordinate systems=====
     hdul = fits.open(im171[0])
-    hdul[0].header["CUNIT1"] = "arcsec"
-    hdul[0].header["CUNIT2"] = "arcsec"
-    aia = sunpy.map.Map(hdul[0].data, hdul[0].header)
+    hdul.verify("fix")
+    hdul[ext_num].header["CUNIT1"] = "arcsec"
+    hdul[ext_num].header["CUNIT2"] = "arcsec"
+    aia = sunpy.map.Map(hdul[ext_num].data, hdul[ext_num].header)
     adj = 4096.0 / aia.dimensions[0].value
     x, y = (np.meshgrid(*[np.arange(adj * v.value) for v in aia.dimensions]) * u.pixel) / adj
     hpc = aia.pixel_to_world(x, y)
