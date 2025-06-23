@@ -1,11 +1,11 @@
 import numpy as np
-from matplotlib import colors
 from numpy.typing import NDArray
 from skimage import measure
 from skimage.draw import polygon2mask
 from sunpy.map import Map, all_coordinates_from_map, coordinate_is_on_solar_disk
 
 import astropy.units as u
+from astropy.table import QTable
 from astropy.units import Quantity
 
 from chimerapy import log
@@ -122,30 +122,50 @@ def filter_ch(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e4 * u.
 
     labeled_mask = measure.label(mask * disk_mask if on_disk else mask)
     regions = measure.regionprops(labeled_mask)
+    regions = sorted(regions, key=lambda r: r.area, reverse=True)
+
+    log.debug(f"Found {len(regions)} coronal hole candidate regions")
+
+    filtered_label_mask = np.zeros_like(labeled_mask)
+    region_label = 1
 
     filtered_regions = []
     for region in regions:
         region_mask = labeled_mask == region.label
-        contours = measure.find_contours(region_mask)
-        if contours:
-            encompassing_contour = sorted(contours, key=lambda x: x.size, reverse=True)[0]
-            filled_region_mask = polygon2mask(region_mask.shape, encompassing_contour)
-            region_surface_area = area_map[filled_region_mask].sum()
-            labeled_mask[filled_region_mask] = region.label
-            if region_surface_area >= min_area and not np.all(region_mask & disk_mask):
-                region.surface_area = region_surface_area
-                filtered_regions.append(region)
-            else:
-                log.debug(f"Removing CH region {region.label}")
-                labeled_mask[region_mask] = 0
+        area_approx = area_map[region_mask].sum()
+        # First approx filter to speed up code as can have 1000s of tiny regions in full res data
+        if area_approx > min_area * 0.75:
+            contours = measure.find_contours(region_mask)
+            if contours:
+                encompassing_contour = sorted(contours, key=lambda x: x.size, reverse=True)[0]
+                filled_region_mask = polygon2mask(region_mask.shape, encompassing_contour)
+                region_surface_area = area_map[filled_region_mask].sum()
+                if region_surface_area >= min_area and not np.all(region_mask & disk_mask):
+                    region.surface_area = region_surface_area
+                    filtered_regions.append(region)
+                    filtered_label_mask[filled_region_mask] = region_label
+                    region.label = region_label
+                    log.debug(f"Keeping region {region.label}, new label {region_label}")
+                    region_label += 1
 
-    filtered_regions = sorted(filtered_regions, key=lambda region: region.surface_area, reverse=True)
-
-    return labeled_mask, filtered_regions
+    return filtered_label_mask, filtered_regions
 
 
-def get_coronal_holes(filtered_regions, map_obj, labeled_mask):
-    coronal_holes = []
+def extract_ch_properties(filtered_regions, map_obj):
+    r"""
+    Extract coronal hole properties
+
+    Parameters
+    ----------
+    filtered_regions :
+        List of coronal hole
+    map_obj
+        Corresponding map
+    Returns
+    -------
+
+    """
+    coronal_hole_properties = []
 
     for region in filtered_regions:
         coords = region.coords
@@ -167,9 +187,9 @@ def get_coronal_holes(filtered_regions, map_obj, labeled_mask):
         centroid = region.centroid
         centroid_world = map_obj.pixel_to_world(centroid[1] * u.pix, centroid[0] * u.pix)
 
-        coronal_holes.append(
+        coronal_hole_properties.append(
             {
-                "area_pixels": region.area,
+                "area_pixels": region.area * u.pixel**2,
                 "area_meters2": region.surface_area,
                 "centroid_world": centroid_world,
                 "centroid_heliographic": centroid_world.transform_to("heliographic_stonyhurst"),
@@ -182,56 +202,33 @@ def get_coronal_holes(filtered_regions, map_obj, labeled_mask):
             }
         )
 
-    coronal_holes = sorted(coronal_holes, key=lambda ch: ch["area_meters2"], reverse=True)
-    for idx, ch in enumerate(coronal_holes, start=1):
-        ch["id"] = idx
+    ch_props_table = QTable(coronal_hole_properties)
 
-    return coronal_holes
-
-
-def map_threshold(im_map):
-    """
-    Set off-disk pixels to black and clip the vmin and vmax of the map.
-
-    Parameters
-    ----------
-    im_map : `~sunpy.map.Map`
-        Unprocessed magnetogram map.
-
-    Returns
-    -------
-    im_map : `~sunpy.map.Map`
-        Processed magnetogram map.
-    """
-    on_disk = coordinate_is_on_solar_disk(all_coordinates_from_map(im_map))
-    im_map.data[~on_disk] = np.nan
-    im_map.cmap.set_bad("k")
-    im_map.plot_settings["norm"] = colors.Normalize(vmin=-200, vmax=200)
-    return im_map
+    return ch_props_table
 
 
 def chimera(m171, m193, m211):
+    r"""
+    Run CHIMERA detection algorithm on input maps
+
+    Parameters
+    ----------
+    m171
+        171 Angstrom
+    m193
+        193 Angstrom
+    m211
+        211 Angstrom
+
+    Returns
+    -------
+
+    """
     ch_mask = generate_candidate_mask(m171, m193, m211)
     labeled_mask, filtered_regions = filter_ch(ch_mask, m171)
+    coronal_holes = extract_ch_properties(filtered_regions, m171)
 
-    coronal_holes = get_coronal_holes(filtered_regions, m171, labeled_mask)
-
-    for ch in coronal_holes:
-        print(
-            f"CH {ch['id']}: "
-            f"Area = {ch['area_meters2'].to('Mm**2'):.2e}, "
-            f"Centroid HPC: {ch['centroid_world'].Tx.value:.2f},{ch['centroid_world'].Ty.value:.2f}, "
-            f"Centroid HGS: {ch['centroid_heliographic'].lon.value:.2f},{ch['centroid_heliographic'].lat.value:.2f}, "
-            f"EB: {ch['eb'].Tx.value:.2f},{ch['eb'].Ty.value:.2f}, "
-            f"WB: {ch['wb'].Tx.value:.2f},{ch['wb'].Ty.value:.2f}, "
-            f"NB: {ch['nb'].Tx.value:.2f},{ch['nb'].Ty.value:.2f}, "
-            f"SB: {ch['sb'].Tx.value:.2f},{ch['sb'].Ty.value:.2f}, "
-            f"E: {ch['eb'].transform_to('heliographic_stonyhurst').lon.value:.2f}-W:{ch['wb'].transform_to('heliographic_stonyhurst').lon.value:.2f}, "
-            f"E-W Extent = {ch['extent_lon']:.2f} °, "
-            f"N: {ch['nb'].transform_to('heliographic_stonyhurst').lat.value:.2f}, S:{ch['sb'].transform_to('heliographic_stonyhurst').lat.value:.2f}"
-            f"N-S Extent = {ch['extent_lat']:.2f} °, "
-        )
-    return ch_mask, labeled_mask
+    return ch_mask, labeled_mask, coronal_holes
 
 
 if __name__ == "__main__":

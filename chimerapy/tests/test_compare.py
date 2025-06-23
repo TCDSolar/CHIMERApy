@@ -62,6 +62,7 @@ def test_compare(p171, p193, p211, pmag, m171, m193, m211):
     current = chimera(m171, m193, m211)  # noqa F841
     original = chimera_original(p171, p193, p211, pmag)  # noqa F841
 
+    # breakpoint()
     # plt.imshow(original[6].reshape(1024, 4, 1024, 4).sum(axis=(1, 3)))
     # plt.contour(current[1])
     # plt.imshow(m193.data, vmin=50, vmax=500)
