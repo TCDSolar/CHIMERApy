@@ -49,7 +49,6 @@ def chimera(im171, im193, im211, imhmi):
     # =====Reads in data and resizes images=====
     ext_num = 0 if im171[0].endswith("fts.gz") else 1
     x = np.arange(0, 1024) * 4
-    hdu_number = 0
     heda = fits.getheader(im171[0], ext_num)
     data = fits.getdata(im171[0], ext=ext_num) / (heda["EXPTIME"])
     dn = RectBivariateSpline(x, x, data, kx=1, ky=1)
@@ -62,7 +61,7 @@ def chimera(im171, im193, im211, imhmi):
     datc = fits.getdata(im211[0], ext=ext_num) / (hedc["EXPTIME"])
     dn = RectBivariateSpline(x, x, datc, kx=1, ky=1)
     datc = dn(np.arange(0, 4096), np.arange(0, 4096))
-    hedm = fits.getheader(imhmi[0], hdu_number)
+    hedm = fits.getheader(imhmi[0], ext=0)
     datm = fits.getdata(imhmi[0], ext=0)
     # dn = scipy.interpolate.interp2d(np.arange(4096), np.arange(4096), datm)
     # datm = dn(np.arange(0, 1024)*4, np.arange(0, 1024)*4)
