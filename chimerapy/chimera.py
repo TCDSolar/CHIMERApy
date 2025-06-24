@@ -190,7 +190,7 @@ def extract_ch_properties(filtered_regions, map_obj):
         coronal_hole_properties.append(
             {
                 "area_pixels": region.area * u.pixel**2,
-                "area_meters2": region.surface_area,
+                "area_meters2": region.surface_area.to(u.Mm**2),
                 "centroid_world": centroid_world,
                 "centroid_heliographic": centroid_world.transform_to("heliographic_stonyhurst"),
                 "eb": eb,
