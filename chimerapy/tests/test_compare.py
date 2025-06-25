@@ -38,7 +38,7 @@ def p211():
 def pmag():
     return [
         download_file(
-            "https://solarmonitor.org/data/2016/09/22/fits/shmi/shmi_maglc_fd_20160922_094640.fts.gz"
+            "https://solarmonitor.org/data/2016/10/31/fits/shmi/shmi_maglc_fd_20161031_134635.fts.gz"
         )
     ]
 
@@ -59,7 +59,7 @@ def m211(p211):
 
 
 def test_compare(p171, p193, p211, pmag, m171, m193, m211):
-    candidates, ch_maks, ch_props = chimera(m171, m193, m211)  # noqa F841
+    candidates, ch_mask, ch_props = chimera(m171, m193, m211)  # noqa F841
     circ, data, datb, datc, dattoarc, hedb, iarr, props, rs, slate, center, xgrid, ygrid = chimera_original(
         p171, p193, p211, pmag
     )  # noqa F841

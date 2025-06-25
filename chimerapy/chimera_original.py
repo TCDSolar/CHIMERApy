@@ -309,8 +309,8 @@ def chimera(im171, im193, im211, imhmi):
                         np.histogram(
                             datm[pos[:, 0], pos[:, 1]],
                             bins=np.arange(
-                                np.round(np.min(datm[pos[:, 0], pos[:, 1]])) - 0.5,
-                                np.round(np.max(datm[pos[:, 0], pos[:, 1]])) + 0.6,
+                                np.round(np.min(datm[pos[:, 1], pos[:, 0]])) - 0.5,
+                                np.round(np.max(datm[pos[:, 1], pos[:, 0]])) + 0.6,
                                 1,
                             ),
                         )
@@ -331,7 +331,7 @@ def chimera(im171, im193, im211, imhmi):
                         log.debug(f"Removig region {i} magnetic cuttoff 1.")
                         continue
                     if (
-                        np.absolute(np.mean(datm[pos[:, 0], pos[:, 1]])) < garr[int(cent[0]), int(cent[1])]
+                        np.absolute(np.mean(datm[pos[:, 1], pos[:, 1]])) < garr[int(cent[0]), int(cent[1])]
                         and arcar < 40000
                     ):
                         log.debug(f"Removig region {i} magnetic cuttoff 2.")
