@@ -301,6 +301,7 @@ def chimera(im171, im193, im211, imhmi):
 
                     # ====create an array for magnetic polarity========
 
+                    # Convert position from AIA to HMI
                     pos = np.zeros((len(poslin[0]), 2), dtype=np.uint)
                     pos[:, 0] = np.array((poslin[0] - (s[0] / 2)) * convermul + (s[1] / 2), dtype=np.uint)
                     pos[:, 1] = np.array((poslin[1] - (s[0] / 2)) * convermul + (s[1] / 2), dtype=np.uint)
