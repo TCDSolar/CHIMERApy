@@ -258,17 +258,16 @@ def chimera(im171, im193, im211, imhmi):
             cent = [np.mean(cont[i][:, 0, 0]), np.mean(cont[i][:, 0, 1])]
 
             # ===remove quiet sun regions encompassed by coronal holes======
-
             if (
                 cand[
-                    np.max(cont[i][:, 0, 0]) + 1,
                     cont[i][np.where(cont[i][:, 0, 0] == np.max(cont[i][:, 0, 0]))[0][0], 0, 1],
+                    np.max(cont[i][:, 0, 0]) + 1,
                 ]
                 > 0
             ) and (
                 iarr[
-                    np.max(cont[i][:, 0, 0]) + 1,
                     cont[i][np.where(cont[i][:, 0, 0] == np.max(cont[i][:, 0, 0]))[0][0], 0, 1],
+                    np.max(cont[i][:, 0, 0]) + 1,
                 ]
                 > 0
             ):

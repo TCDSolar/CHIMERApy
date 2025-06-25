@@ -63,7 +63,6 @@ def test_compare(p171, p193, p211, pmag, m171, m193, m211):
     circ, data, datb, datc, dattoarc, hedb, iarr, props, rs, slate, center, xgrid, ygrid = chimera_original(
         p171, p193, p211, pmag
     )  # noqa F841
-
     ch_props.pprint_all()
     print(props)
 
