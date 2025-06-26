@@ -36,7 +36,7 @@ def p211():
 
 @pytest.fixture()
 def pmag():
-    return [
+    return [  #'/Users/sm/Projects/chimera-idl/hmi.M_720s.20161031_022400_TAI.3.magnetogram.fits'
         download_file(
             "https://solarmonitor.org/data/2016/10/31/fits/shmi/shmi_maglc_fd_20161031_134635.fts.gz"
         )

@@ -51,7 +51,6 @@ def chimera(im171, im193, im211, imhmi):
     # =====Reads in data and resizes images=====
     ext_num = 0 if im171[0].endswith("fts.gz") else 1
     x = np.arange(0, 1024) * 4
-    hdu_number = 0
     heda = fits.getheader(im171[0], ext_num)
     data = fits.getdata(im171[0], ext=ext_num) / (heda["EXPTIME"])
     dn = RectBivariateSpline(x, x, data, kx=1, ky=1)
@@ -64,11 +63,11 @@ def chimera(im171, im193, im211, imhmi):
     datc = fits.getdata(im211[0], ext=ext_num) / (hedc["EXPTIME"])
     dn = RectBivariateSpline(x, x, datc, kx=1, ky=1)
     datc = dn(np.arange(0, 4096), np.arange(0, 4096))
-    hedm = fits.getheader(imhmi[0], hdu_number)
-    datm = fits.getdata(imhmi[0], ext=0)
+    hedm = fits.getheader(imhmi[0], ext_num)
+    datm = fits.getdata(imhmi[0], ext=ext_num)
     # dn = scipy.interpolate.interp2d(np.arange(4096), np.arange(4096), datm)
     # datm = dn(np.arange(0, 1024)*4, np.arange(0, 1024)*4)
-    if hedm["crota1"] > 90:
+    if hedm.get("crota1", 0) > 90 or hedm.get("crota2", 0) > 90:
         datm = np.rot90(np.rot90(datm))
     # =====Specifies solar radius and calculates conversion value of pixel to arcsec=====
     s = np.shape(data)
@@ -322,7 +321,6 @@ def chimera(im171, im193, im211, imhmi):
                     wh2 = np.where(npix[1] < 0)
 
                     # =====magnetic cut offs dependent on area=========
-
                     if (
                         np.absolute((np.sum(npix[0][wh1]) - np.sum(npix[0][wh2])) / np.sqrt(np.sum(npix[0])))
                         <= 10
@@ -331,7 +329,7 @@ def chimera(im171, im193, im211, imhmi):
                         log.debug(f"Removig region {i} magnetic cuttoff 1.")
                         continue
                     if (
-                        np.absolute(np.mean(datm[pos[:, 1], pos[:, 1]])) < garr[int(cent[0]), int(cent[1])]
+                        np.absolute(np.mean(datm[pos[:, 0], pos[:, 1]])) < garr[int(cent[0]), int(cent[1])]
                         and arcar < 40000
                     ):
                         log.debug(f"Removig region {i} magnetic cuttoff 2.")
