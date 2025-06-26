@@ -136,7 +136,6 @@ def filter_ch(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e4 * u.
                 region.surface_area = region_surface_area
                 filtered_regions.append(region)
             else:
-                log.debug(f"Removing CH region {region.label}")
                 labeled_mask[region_mask] = 0
 
     filtered_regions = sorted(filtered_regions, key=lambda region: region.surface_area, reverse=True)

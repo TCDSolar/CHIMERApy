@@ -7,6 +7,10 @@ import sys
 import chimerapy.chimera as chimera_new
 import matplotlib.pyplot as plt
 import chimerapy.chimera_original as chimera_old
+import warnings
+from astropy.io.fits.verify import VerifyWarning
+
+warnings.filterwarnings("ignore", category=VerifyWarning)
 
 """
 date = "2016/11/04"
@@ -31,17 +35,16 @@ if results:
 else:
     print("No files found for the specified date and wavelength.")
 """
-
-path_171 = r"downloaded_data/AIA20161031_1104_0171.fits"
-path_193 = r"downloaded_data/AIA20161031_1104_0193.fits"
-path_211 = r"downloaded_data/AIA20161031_1104_0211.fits"
+path_171 = r"scripts\downloaded_data\AIA20161031_1156_0171.fits"
+path_193 = r"scripts\downloaded_data\AIA20161031_1156_0193.fits"
+path_211 = r"scripts\downloaded_data\AIA20161031_1156_0211.fits"
 
 m171 = Map(path_171)
 m193 = Map(path_193)
 m211 = Map(path_211)
 imhmi = "https://solarmonitor.org/data/2016/09/22/fits/shmi/shmi_maglc_fd_20160922_094640.fts.gz"
 
-labeled_mask, ch_mask, coronal_holes = chimera_new.chimera(m171, m193, m211)
+ch_mask, labeled_mask, coronal_holes = chimera_new.chimera(m171, m193, m211)
 
 if coronal_holes:
     print("These are the new CHIMERA results")
@@ -87,29 +90,47 @@ for i in range(1, num_coronal_holes + 1):
     print(f"  <PHI+>: {props[24, i]}")
     print(f"  <PHI->: {props[25, i]}")
 
-plt.figure()
-plt.imshow(iarr.reshape(1024, 4, 1024, 4).sum(axis=(1, 3)))
-plt.title(f"Old Coronal Hole Mask")
-plt.close()
+old_mask = (iarr.reshape(1024, 4, 1024, 4).sum(axis=(1, 3))).astype(np.int8)
+new_mask = (labeled_mask).astype(np.int8)
+diff_map = old_mask - new_mask 
 
-plt.figure()
-plt.imshow(ch_mask)
-plt.title(f"New Coronal Hole Mask")
-plt.close()
+fig, axes = plt.subplots(1, 2, figsize=(10, 5))
 
-plt.figure()
-plt.imshow(m193.data, vmin=50, vmax=500)
-plt.title(f"m193 image")
-plt.close()
+axes[0].imshow(old_mask)
+axes[0].set_title("Old Coronal Hole Mask")
+axes[0].axis('off')
 
-plt.figure()
-plt.contour(iarr.reshape(1024, 4, 1024, 4).sum(axis=(1, 3)), colors='w', linewidths=0.5)
-plt.imshow(m193.data, vmin=50, vmax=500)
-plt.title(f"Old Coronal Hole Overlay")
-plt.close()
+axes[1].imshow(new_mask)
+axes[1].set_title("New Coronal Hole Mask")
+axes[1].axis('off')
 
-plt.figure()
-plt.contour(ch_mask, colors='w', linewidths=0.5)
-plt.imshow(m193.data, vmin=50, vmax=500)
-plt.title(f"New Coronal Hole Overlay")
-plt.close()
+plt.tight_layout()
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+
+axes[0].imshow(m193.data, vmin=50, vmax=500)
+axes[0].contour(old_mask, colors='w', linewidths=0.5)
+axes[0].set_title("Old Coronal Hole Overlay")
+axes[0].axis('off')
+
+axes[1].imshow(m193.data, vmin=50, vmax=500)
+axes[1].contour(new_mask, colors='w', linewidths=0.5)
+axes[1].set_title("New Coronal Hole Overlay")
+axes[1].axis('off')
+
+plt.tight_layout()
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 5))
+
+axes[0].imshow(diff_map, cmap='bwr', vmin=-1, vmax=1)
+axes[0].set_title("Difference Map (New(Blue) vs Old(Red))")
+axes[0].axis('off')
+
+axes[1].imshow(m193.data, vmin=50, vmax=500)
+axes[1].contour(old_mask, colors='r', linewidths=0.5)
+axes[1].contour(new_mask, colors='w', linewidths=0.5)
+axes[1].set_title("Both Coronal Hole Overlays New(White) vs Old(Red)")
+axes[1].axis('off')
+
+plt.tight_layout()
+plt.show()
