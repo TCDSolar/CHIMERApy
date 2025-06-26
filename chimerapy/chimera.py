@@ -136,7 +136,6 @@ def filter_ch(mask: NDArray, map_obj: Map, min_area: Quantity["area"] = 1e4 * u.
                 region.surface_area = region_surface_area
                 filtered_regions.append(region)
             else:
-                log.debug(f"Removing CH region {region.label}")
                 labeled_mask[region_mask] = 0
 
     filtered_regions = sorted(filtered_regions, key=lambda region: region.surface_area, reverse=True)
@@ -231,7 +230,7 @@ def chimera(m171, m193, m211):
             f"N: {ch['nb'].transform_to('heliographic_stonyhurst').lat.value:.2f}, S:{ch['sb'].transform_to('heliographic_stonyhurst').lat.value:.2f}"
             f"N-S Extent = {ch['extent_lat']:.2f} °, "
         )
-    return ch_mask, labeled_mask
+    return ch_mask, labeled_mask, coronal_holes
 
 
 if __name__ == "__main__":

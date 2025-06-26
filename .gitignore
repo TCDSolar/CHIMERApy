@@ -261,3 +261,4 @@ package.json
 *.log
 
 .project
+downloaded_data/
