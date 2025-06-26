@@ -18,6 +18,8 @@ from astropy import wcs
 from astropy.io import fits
 from astropy.modeling.models import Gaussian2D
 
+from chimerapy import log
+
 
 def chimera_legacy(im171=None, im193=None, im211=None, imhmi=None):
     file_path = "./"
@@ -49,7 +51,6 @@ def chimera(im171, im193, im211, imhmi):
     # =====Reads in data and resizes images=====
     ext_num = 0 if im171[0].endswith("fts.gz") else 1
     x = np.arange(0, 1024) * 4
-    hdu_number = 0
     heda = fits.getheader(im171[0], ext_num)
     data = fits.getdata(im171[0], ext=ext_num) / (heda["EXPTIME"])
     dn = RectBivariateSpline(x, x, data, kx=1, ky=1)
@@ -62,11 +63,11 @@ def chimera(im171, im193, im211, imhmi):
     datc = fits.getdata(im211[0], ext=ext_num) / (hedc["EXPTIME"])
     dn = RectBivariateSpline(x, x, datc, kx=1, ky=1)
     datc = dn(np.arange(0, 4096), np.arange(0, 4096))
-    hedm = fits.getheader(imhmi[0], hdu_number)
-    datm = fits.getdata(imhmi[0], ext=0)
+    hedm = fits.getheader(imhmi[0], ext_num)
+    datm = fits.getdata(imhmi[0], ext=ext_num)
     # dn = scipy.interpolate.interp2d(np.arange(4096), np.arange(4096), datm)
     # datm = dn(np.arange(0, 1024)*4, np.arange(0, 1024)*4)
-    if hedm["crota1"] > 90:
+    if hedm.get("crota1", 0) > 90 or hedm.get("crota2", 0) > 90:
         datm = np.rot90(np.rot90(datm))
     # =====Specifies solar radius and calculates conversion value of pixel to arcsec=====
     s = np.shape(data)
@@ -242,6 +243,7 @@ def chimera(im171, im193, im211, imhmi):
         # =====only takes values of minimum surface length and calculates area======
 
         if len(cont[i]) <= 100:
+            log.debug(f"Removing region {i} as too short/small")
             continue
         area = 0.5 * np.abs(
             np.dot(cont[i][:, 0, 0], np.roll(cont[i][:, 0, 1], 1))
@@ -255,20 +257,20 @@ def chimera(im171, im193, im211, imhmi):
             cent = [np.mean(cont[i][:, 0, 0]), np.mean(cont[i][:, 0, 1])]
 
             # ===remove quiet sun regions encompassed by coronal holes======
-
             if (
                 cand[
-                    np.max(cont[i][:, 0, 0]) + 1,
                     cont[i][np.where(cont[i][:, 0, 0] == np.max(cont[i][:, 0, 0]))[0][0], 0, 1],
+                    np.max(cont[i][:, 0, 0]) + 1,
                 ]
                 > 0
             ) and (
                 iarr[
-                    np.max(cont[i][:, 0, 0]) + 1,
                     cont[i][np.where(cont[i][:, 0, 0] == np.max(cont[i][:, 0, 0]))[0][0], 0, 1],
+                    np.max(cont[i][:, 0, 0]) + 1,
                 ]
                 > 0
             ):
+                log.debug(f"Removing region {i} as quiet sun region encompassed by coronal holes.")
                 mahotas.polygon.fill_polygon(np.array(list(zip(cont[i][:, 0, 1], cont[i][:, 0, 0]))), slate)
                 iarr[np.where(slate == 1)] = 0
                 slate[:] = 0
@@ -286,6 +288,7 @@ def chimera(im171, im193, im211, imhmi):
                     mahotas.polygon.fill_polygon(
                         np.array(list(zip(cont[i][:, 0, 1], cont[i][:, 0, 0]))), offarr
                     )
+                    log.debug(f"Identified region {i} as off limb")
                 else:
                     # =====classifies on disk coronal holes=======
 
@@ -297,6 +300,7 @@ def chimera(im171, im193, im211, imhmi):
 
                     # ====create an array for magnetic polarity========
 
+                    # Convert position from AIA to HMI
                     pos = np.zeros((len(poslin[0]), 2), dtype=np.uint)
                     pos[:, 0] = np.array((poslin[0] - (s[0] / 2)) * convermul + (s[1] / 2), dtype=np.uint)
                     pos[:, 1] = np.array((poslin[1] - (s[0] / 2)) * convermul + (s[1] / 2), dtype=np.uint)
@@ -304,8 +308,8 @@ def chimera(im171, im193, im211, imhmi):
                         np.histogram(
                             datm[pos[:, 0], pos[:, 1]],
                             bins=np.arange(
-                                np.round(np.min(datm[pos[:, 0], pos[:, 1]])) - 0.5,
-                                np.round(np.max(datm[pos[:, 0], pos[:, 1]])) + 0.6,
+                                np.round(np.min(datm[pos[:, 1], pos[:, 0]])) - 0.5,
+                                np.round(np.max(datm[pos[:, 1], pos[:, 0]])) + 0.6,
                                 1,
                             ),
                         )
@@ -317,17 +321,18 @@ def chimera(im171, im193, im211, imhmi):
                     wh2 = np.where(npix[1] < 0)
 
                     # =====magnetic cut offs dependent on area=========
-
                     if (
                         np.absolute((np.sum(npix[0][wh1]) - np.sum(npix[0][wh2])) / np.sqrt(np.sum(npix[0])))
                         <= 10
                         and arcar < 9000
                     ):
+                        log.debug(f"Removig region {i} magnetic cuttoff 1.")
                         continue
                     if (
                         np.absolute(np.mean(datm[pos[:, 0], pos[:, 1]])) < garr[int(cent[0]), int(cent[1])]
                         and arcar < 40000
                     ):
+                        log.debug(f"Removig region {i} magnetic cuttoff 2.")
                         continue
                     iarr[poslin] = ident
 

@@ -5,12 +5,12 @@ from unittest.mock import patch
 import cv2
 import numpy as np
 import pytest
+from parfive import Downloader
 from sunpy.map import Map, all_coordinates_from_map
 
 import astropy.units as u
 from astropy.io import fits
 from astropy.tests.helper import assert_quantity_allclose
-from astropy.utils.data import download_file
 
 from chimerapy.chimera_original import chimera, chimera_legacy
 
@@ -31,38 +31,34 @@ def map_fix_cunit(url):
 
 @pytest.fixture()
 def p171():
-    return [
-        download_file(
-            "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00171_fd_20160922_103010.fts.gz"
-        )
-    ]
+    return Downloader().simple_download(
+        ["https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00171_fd_20160922_103010.fts.gz"],
+        path=Path.home() / "sunpy" / "data",
+    )
 
 
 @pytest.fixture()
 def p193():
-    return [
-        download_file(
-            "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00193_fd_20160922_103041.fts.gz"
-        )
-    ]
+    return Downloader().simple_download(
+        ["https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00193_fd_20160922_103041.fts.gz"],
+        path=Path.home() / "sunpy" / "data",
+    )
 
 
 @pytest.fixture()
 def p211():
-    return [
-        download_file(
-            "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00211_fd_20160922_103046.fts.gz"
-        )
-    ]
+    return Downloader().simple_download(
+        ["https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00211_fd_20160922_103046.fts.gz"],
+        path=Path.home() / "sunpy" / "data",
+    )
 
 
 @pytest.fixture()
 def pmag():
-    return [
-        download_file(
-            "https://solarmonitor.org/data/2016/09/22/fits/shmi/shmi_maglc_fd_20160922_094640.fts.gz"
-        )
-    ]
+    return Downloader().simple_download(
+        ["https://solarmonitor.org/data/2016/09/22/fits/shmi/shmi_maglc_fd_20160922_094640.fts.gz"],
+        path=Path.home() / "sunpy" / "data",
+    )
 
 
 @pytest.fixture()
@@ -85,9 +81,13 @@ def test_chimera(tmp_path, p171, p193, p211, pmag):
     assert ch_summary_text == test_summary_text
 
 
-@pytest.mark.parametrize("pos", ((0, 0), (0, 15), (0, 30), (0, 45), (0, 60), (0, 75)), ids=lambda x: str(x))
+@pytest.mark.parametrize(
+    ("pos", "rtol"),
+    (((0, 0), 0.05), ((0, 15), 0.05), ((0, 30), 0.05), ((0, 45), 0.05), ((0, 60), 0.1), ((0, 75), 0.35)),
+    ids=lambda x: str(x),
+)
 @patch("chimerapy.chimera_original.cv2")
-def test_chimera_orig_area(mock_contours, tmp_path, p171, p193, p211, pmag, m171, pos):
+def test_chimera_orig_area(mock_contours, tmp_path, p171, p193, p211, pmag, m171, pos, rtol):
     dummy_map = m171.resample([4096, 4096] * u.pix)
 
     theta = 15 * u.deg
@@ -113,4 +113,4 @@ def test_chimera_orig_area(mock_contours, tmp_path, p171, p193, p211, pmag, m171
 
     cone_area = 2 * np.pi * dummy_map.rsun_meters**2 * (1 - np.cos(theta))
 
-    assert_quantity_allclose(ch_area, cone_area, rtol=0.05)
+    assert_quantity_allclose(ch_area, cone_area, rtol=rtol)

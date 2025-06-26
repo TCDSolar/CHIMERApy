@@ -36,9 +36,9 @@ def p211():
 
 @pytest.fixture()
 def pmag():
-    return [
+    return [  #'/Users/sm/Projects/chimera-idl/hmi.M_720s.20161031_022400_TAI.3.magnetogram.fits'
         download_file(
-            "https://solarmonitor.org/data/2016/09/22/fits/shmi/shmi_maglc_fd_20160922_094640.fts.gz"
+            "https://solarmonitor.org/data/2016/10/31/fits/shmi/shmi_maglc_fd_20161031_134635.fts.gz"
         )
     ]
 
@@ -59,8 +59,12 @@ def m211(p211):
 
 
 def test_compare(p171, p193, p211, pmag, m171, m193, m211):
-    current = chimera(m171, m193, m211)  # noqa F841
-    original = chimera_original(p171, p193, p211, pmag)  # noqa F841
+    candidates, ch_mask, ch_props = chimera(m171, m193, m211)  # noqa F841
+    circ, data, datb, datc, dattoarc, hedb, iarr, props, rs, slate, center, xgrid, ygrid = chimera_original(
+        p171, p193, p211, pmag
+    )  # noqa F841
+    ch_props.pprint_all()
+    print(props)
 
     # plt.imshow(original[6].reshape(1024, 4, 1024, 4).sum(axis=(1, 3)))
     # plt.contour(current[1])
