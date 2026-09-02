@@ -1,10 +1,11 @@
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from sunpy.map import Map, all_coordinates_from_map
 
 import astropy.units as u
 from astropy.tests.helper import assert_quantity_allclose
+
+from sunpy.map import Map, all_coordinates_from_map
 
 from chimerapy.chimera import calculate_area_map, filter_ch, generate_candidate_mask
 

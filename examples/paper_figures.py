@@ -16,6 +16,12 @@ import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.colors import LogNorm
 from matplotlib.patches import Rectangle
+
+import astropy.units as u
+from astropy.coordinates import SkyCoord
+from astropy.units import UnitsError
+from astropy.visualization import make_lupton_rgb
+
 from sunpy.map import (
     Map,
     all_coordinates_from_map,
@@ -23,11 +29,6 @@ from sunpy.map import (
     pixelate_coord_path,
     sample_at_coords,
 )
-
-import astropy.units as u
-from astropy.coordinates import SkyCoord
-from astropy.units import UnitsError
-from astropy.visualization import make_lupton_rgb
 
 # %%
 #
@@ -406,9 +407,9 @@ axes["comb_mask"].imshow(mask_171_193 * mask_171_211 * mask_211_193, origin="low
 
 mask_map = Map(((mask_171_193 * mask_171_211 * mask_211_193).astype(int), m171.meta))
 try:
-    contours = mask_map.contour(0.5 / u.s)
+    contours = mask_map.find_contours(0.5 / u.s)
 except UnitsError:
-    contours = mask_map.contour(50 * u.percent)
+    contours = mask_map.find_contours(50 * u.percent)
 
 contours = sorted(contours, key=lambda x: x.size, reverse=True)
 

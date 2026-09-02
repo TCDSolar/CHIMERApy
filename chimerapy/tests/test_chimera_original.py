@@ -6,13 +6,26 @@ import cv2
 import numpy as np
 import pytest
 from parfive import Downloader
-from sunpy.map import Map, all_coordinates_from_map
 
 import astropy.units as u
 from astropy.io import fits
 from astropy.tests.helper import assert_quantity_allclose
 
+from sunpy.map import Map, all_coordinates_from_map
+
 from chimerapy.chimera_original import chimera, chimera_legacy
+
+# Legacy module: sunpy Maps here are built from raw FITS without full observer
+# metadata and with WCS headers astropy needs to fix up. That is expected for
+# this legacy code path, so scope these ignores to this file only.
+pytestmark = [
+    pytest.mark.filterwarnings("ignore::sunpy.util.exceptions.SunpyMetadataWarning"),
+    pytest.mark.filterwarnings("ignore::astropy.wcs.FITSFixedWarning"),
+    pytest.mark.filterwarnings(
+        "ignore:CTYPE[12] value 'solar-.'/'solar_.' is deprecated:sunpy.util.exceptions.SunpyDeprecationWarning"
+    ),
+]
+
 
 INPUT_FILES = {
     "aia171": "https://solarmonitor.org/data/2016/09/22/fits/saia/saia_00171_fd_20160922_103010.fts.gz",
@@ -27,7 +40,6 @@ def map_fix_cunit(url):
     hdul[0].header["CUNIT1"] = "arcsec"
     hdul[0].header["CUNIT2"] = "arcsec"
     return Map((hdul[0].data, hdul[0].header))
-
 
 @pytest.fixture()
 def p171():
@@ -83,7 +95,7 @@ def test_chimera(tmp_path, p171, p193, p211, pmag):
 
 @pytest.mark.parametrize(
     ("pos", "rtol"),
-    (((0, 0), 0.05), ((0, 15), 0.05), ((0, 30), 0.05), ((0, 45), 0.05), ((0, 60), 0.1), ((0, 75), 0.35)),
+    [((0, 0), 0.05), ((0, 15), 0.05), ((0, 30), 0.05), ((0, 45), 0.05), ((0, 60), 0.1), ((0, 75), 0.35)],
     ids=lambda x: str(x),
 )
 @patch("chimerapy.chimera_original.cv2")

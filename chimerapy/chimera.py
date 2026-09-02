@@ -2,11 +2,12 @@ import numpy as np
 from numpy.typing import NDArray
 from skimage import measure
 from skimage.draw import polygon2mask
-from sunpy.map import Map, all_coordinates_from_map, coordinate_is_on_solar_disk
 
 import astropy.units as u
 from astropy.table import QTable
 from astropy.units import Quantity
+
+from sunpy.map import Map, all_coordinates_from_map, coordinate_is_on_solar_disk
 
 from chimerapy import log
 

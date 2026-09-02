@@ -1,30 +1,42 @@
 {
   "template": "https://github.com/sunpy/package-template",
-  "commit": "d7d9c32538c7bc961c06d901847d8d4f75e4d6cf",
+  "commit": "de26b5a88dcad688046a5a5edbe00b5af1793e13",
   "checkout": null,
   "context": {
     "cookiecutter": {
       "package_name": "CHIMERApy",
       "module_name": "chimerapy",
-      "short_description": "CHIMERApy is a python implmentation of the CHIMERA coronal hole detection algorithm.",
+      "short_description": "CHIMERApy is a python implementation of the CHIMERA coronal hole detection algorithm.",
       "author_name": "DIAS Solar",
       "author_email": "",
       "project_url": "chimera-py.readthedocs.io",
+      "github_repo": "",
+      "sourcecode_url": "",
+      "download_url": "https://pypi.org/project/CHIMERApy",
+      "documentation_url": "",
+      "changelog_url": "",
+      "issue_tracker_url": "",
       "license": "BSD 3-Clause",
-      "minimum_python_version": "3.9",
+      "minimum_python_version": "3.12",
       "use_compiled_extensions": "n",
       "enable_dynamic_dev_versions": "y",
       "include_example_code": "n",
       "include_cruft_update_github_workflow": "y",
-      "_sphinx_theme": "alabaster",
+      "use_pat_in_cruft_update_workflow": "y",
+      "use_extended_ruff_linting": "n",
+      "matrix_room_id": "",
+      "extra_ci_jobs": "",
+      "use_sunpy_pr_template": "n",
+      "_sphinx_theme": "pydata",
       "_parent_project": "",
       "_install_requires": "",
       "_copy_without_render": [
         "docs/_templates",
         "docs/_static",
-        ".github/workflows/sub_package_update.yml"
+        ".github/workflows/zizmor.yml"
       ],
-      "_template": "https://github.com/sunpy/package-template"
+      "_template": "https://github.com/sunpy/package-template",
+      "_commit": "de26b5a88dcad688046a5a5edbe00b5af1793e13"
     }
   },
   "directory": null

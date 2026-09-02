@@ -22,6 +22,6 @@ exclude =
     __pycache__
     docs/conf.py
     build
-    CHIMERApy/__init__.py,
+    CHIMERApy/__init__.py
 rst-directives =
     plot

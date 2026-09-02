@@ -1,7 +1,8 @@
 import pytest
-from sunpy.map import Map
 
 from astropy.utils.data import download_file
+
+from sunpy.map import Map
 
 from chimerapy.chimera import chimera
 from chimerapy.chimera_original import chimera as chimera_original
