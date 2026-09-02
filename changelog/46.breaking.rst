@@ -1,0 +1,7 @@
+Bumped the minimum supported versions of core dependencies:
+
+- Python >= 3.13
+- ``sunpy[net,map]`` >=6.1.0
+- ``mahotas`` >= 1.4.15
+- ``scikit-image`` >= 0.25.0
+- ``opencv-python`` >= 4.11.0.86

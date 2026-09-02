@@ -7,6 +7,19 @@ from sunpy.map import Map
 from chimerapy.chimera import chimera
 from chimerapy.chimera_original import chimera as chimera_original
 
+# The legacy implementation reads raw solar FITS headers (AIA lev1.5 / HMI) and
+# builds sunpy Maps and astropy WCS from them directly, which emit the usual
+# metadata/verification/WCS-fixup warnings. Expected for this code path; scope
+# the ignores to this comparison module only.
+pytestmark = [
+    pytest.mark.filterwarnings("ignore::sunpy.util.exceptions.SunpyMetadataWarning"),
+    pytest.mark.filterwarnings("ignore::astropy.io.fits.verify.VerifyWarning"),
+    pytest.mark.filterwarnings("ignore::astropy.wcs.FITSFixedWarning"),
+    pytest.mark.filterwarnings(
+        "ignore:CTYPE[12] value 'solar-.'/'solar_.' is deprecated:sunpy.util.exceptions.SunpyDeprecationWarning"
+    ),
+]
+
 
 @pytest.fixture()
 def p171():

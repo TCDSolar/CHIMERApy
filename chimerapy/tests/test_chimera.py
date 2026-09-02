@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
@@ -8,6 +10,8 @@ from astropy.tests.helper import assert_quantity_allclose
 from sunpy.map import Map, all_coordinates_from_map
 
 from chimerapy.chimera import calculate_area_map, filter_ch, generate_candidate_mask
+
+DATA_DIR = Path(__file__).parent / "data"
 
 
 @pytest.fixture(scope="module")
@@ -26,15 +30,19 @@ def m211():
 
 
 def test_generate_candidate_mask(m171, m193, m211):
-    from examples.paper_figures import mask_map
+    # Frozen baseline of generate_candidate_mask for the 2016-10-31 synoptic maps.
+    # Regenerate with:
+    # import numpy as np; from sunpy.map import Map
+    # from chimerapy.chimera import generate_candidate_mask as g
+    # m=[Map(u) for u in ('.../AIA20161031_0232_0171.fits', ...0193..., ...0211...)]
+    # np.savez_compressed('chimerapy/tests/data/candidate_mask_2016-10-31.npz',
+    #                     mask=np.asarray(g(*m)).astype(bool))
+    expected_mask = np.load(DATA_DIR / "candidate_mask_2016-10-31.npz")["mask"]
 
     result_mask = generate_candidate_mask(m171, m193, m211)
 
-    expected_shape = m171.data.shape
-    assert result_mask.shape == expected_shape, "Mask shape does not match expected shape."
-
-    expected_mask = mask_map.data.astype(bool)
-    np.testing.assert_allclose(result_mask, expected_mask)
+    assert result_mask.shape == m171.data.shape, "Mask shape does not match expected shape."
+    np.testing.assert_array_equal(np.asarray(result_mask).astype(bool), expected_mask)
 
 
 def test_calculate_area_map(m171):

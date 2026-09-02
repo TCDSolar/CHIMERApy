@@ -13,10 +13,10 @@ requires-python = ">=3.12"
 readme = { file = "README.rst", content-type = "text/x-rst" }
 license-files = ["licenses/LICENSE.rst"]
 dependencies = [
-    'sunpy[net,map]>=5.1.0',
-    'mahotas>=1.4.0',
-    'scikit-image',
-    'opencv-python',
+    'sunpy[net,map]>=6.1.0',
+    'mahotas>=1.4.17',
+    'scikit-image>=0.25.0',
+    'opencv-python>=4.11.0.86',
 ]
 dynamic = ["version"]
 

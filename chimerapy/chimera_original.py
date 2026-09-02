@@ -6,7 +6,7 @@ import sys
 from unittest.mock import MagicMock
 
 import cv2
-import mahotas
+import mahotas.polygon
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.interpolate import RectBivariateSpline
@@ -45,27 +45,45 @@ def chimera_legacy(im171=None, im193=None, im211=None, imhmi=None):
     return circ, data, datb, datc, dattoarc, hedb, iarr, props, rs, slate, center, xgrid, ygrid
 
 
+def _first_image_ext(path):
+    """
+    Index of the first HDU holding a 2D image.
+
+    Handles plain single-HDU files (e.g. solarmonitor ``.fts.gz``) as well as
+    Rice-compressed AIA files where the image lives in HDU 1. Cannot rely on the
+    file name as ``astropy``/``parfive`` downloads have opaque cache names.
+    """
+    with fits.open(path) as hdul:
+        for i, hdu in enumerate(hdul):
+            if hdu.data is not None and hdu.data.ndim == 2:
+                return i
+    return 0
+
+
 def chimera(im171, im193, im211, imhmi):
     if im171 == [] or im193 == [] or im211 == [] or imhmi == []:
         print("Not all required files present")
         sys.exit()
     # =====Reads in data and resizes images=====
-    ext_num = 0 if im171[0].endswith("fts.gz") else 1
+    ext171 = _first_image_ext(im171[0])
+    ext193 = _first_image_ext(im193[0])
+    ext211 = _first_image_ext(im211[0])
+    extm = _first_image_ext(imhmi[0])
     x = np.arange(0, 1024) * 4
-    heda = fits.getheader(im171[0], ext_num)
-    data = fits.getdata(im171[0], ext=ext_num) / (heda["EXPTIME"])
+    heda = fits.getheader(im171[0], ext171)
+    data = fits.getdata(im171[0], ext=ext171) / (heda["EXPTIME"])
     dn = RectBivariateSpline(x, x, data, kx=1, ky=1)
     data = dn(np.arange(0, 4096), np.arange(0, 4096))
-    hedb = fits.getheader(im193[0], ext_num)
-    datb = fits.getdata(im193[0], ext=ext_num) / (hedb["EXPTIME"])
+    hedb = fits.getheader(im193[0], ext193)
+    datb = fits.getdata(im193[0], ext=ext193) / (hedb["EXPTIME"])
     dn = RectBivariateSpline(x, x, datb, kx=1, ky=1)
     datb = dn(np.arange(0, 4096), np.arange(0, 4096))
-    hedc = fits.getheader(im211[0], ext_num)
-    datc = fits.getdata(im211[0], ext=ext_num) / (hedc["EXPTIME"])
+    hedc = fits.getheader(im211[0], ext211)
+    datc = fits.getdata(im211[0], ext=ext211) / (hedc["EXPTIME"])
     dn = RectBivariateSpline(x, x, datc, kx=1, ky=1)
     datc = dn(np.arange(0, 4096), np.arange(0, 4096))
-    hedm = fits.getheader(imhmi[0], ext_num)
-    datm = fits.getdata(imhmi[0], ext=ext_num)
+    hedm = fits.getheader(imhmi[0], extm)
+    datm = fits.getdata(imhmi[0], ext=extm)
     # dn = scipy.interpolate.interp2d(np.arange(4096), np.arange(4096), datm)
     # datm = dn(np.arange(0, 1024)*4, np.arange(0, 1024)*4)
     if hedm.get("crota1", 0) > 90 or hedm.get("crota2", 0) > 90:
@@ -99,10 +117,10 @@ def chimera(im171, im193, im211, imhmi):
     convermul = dattoarc / hedm["cdelt1"]
     # =====Alternative coordinate systems=====
     hdul = fits.open(im171[0])
-    hdul.verify("fix")
-    hdul[ext_num].header["CUNIT1"] = "arcsec"
-    hdul[ext_num].header["CUNIT2"] = "arcsec"
-    aia = sunpy.map.Map(hdul[ext_num].data, hdul[ext_num].header)
+    hdul.verify("silentfix")
+    hdul[ext171].header["CUNIT1"] = "arcsec"
+    hdul[ext171].header["CUNIT2"] = "arcsec"
+    aia = sunpy.map.Map(hdul[ext171].data, hdul[ext171].header)
     adj = 4096.0 / aia.dimensions[0].value
     x, y = (np.meshgrid(*[np.arange(adj * v.value) for v in aia.dimensions]) * u.pixel) / adj
     hpc = aia.pixel_to_world(x, y)
@@ -309,8 +327,8 @@ def chimera(im171, im193, im211, imhmi):
                         np.histogram(
                             datm[pos[:, 0], pos[:, 1]],
                             bins=np.arange(
-                                np.round(np.min(datm[pos[:, 1], pos[:, 0]])) - 0.5,
-                                np.round(np.max(datm[pos[:, 1], pos[:, 0]])) + 0.6,
+                                np.round(np.min(datm[pos[:, 0], pos[:, 1]])) - 0.5,
+                                np.round(np.max(datm[pos[:, 0], pos[:, 1]])) + 0.6,
                                 1,
                             ),
                         )
