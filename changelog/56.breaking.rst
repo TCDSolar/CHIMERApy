@@ -1,6 +1,6 @@
 Bumped the minimum supported versions of core dependencies:
 
-- Python >= 3.13
+- Python >= 3.12
 - ``sunpy[net,map]`` >=6.1.0
 - ``mahotas`` >= 1.4.15
 - ``scikit-image`` >= 0.25.0

@@ -34,11 +34,12 @@ docs = [
   "sunpy-sphinx-theme",
   "packaging",
   "sphinx-gallery",
+  "pydata-sphinx-theme",
 ]
 dev = ["chimerapy[docs,tests]"]
 
 [project.urls]
-Homepage = "chimera-py.readthedocs.io"
+Homepage = "https://chimera-py.readthedocs.io"
 Download = "https://pypi.org/project/CHIMERApy"
 
 [tool.setuptools]

@@ -7,7 +7,7 @@ repos:
         args: ["--fix"]
         types: [python]
         # Define here once and then reference using YAML anchor
-        exclude: &exclude_dirs ^{{ cookiecutter.module_name }}/(data|extern)/
+        exclude: &exclude_dirs ^chimerapy/(data|extern)/
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:

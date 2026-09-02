@@ -101,7 +101,7 @@ jobs:
     with:
       python-version: 3.13
       test_extras: 'tests'
-      test_command: 'pytest -p no:warnings --doctest-rst --pyargs {{ cookiecutter.module_name }}'
+      test_command: 'pytest -p no:warnings --doctest-rst --pyargs chimerapy'
       submodules: false
       save_artifacts: true
       upload_to_pypi: false
