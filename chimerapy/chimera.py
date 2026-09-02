@@ -11,6 +11,7 @@ from sunpy.map import Map, all_coordinates_from_map, coordinate_is_on_solar_disk
 
 from chimerapy import log
 
+__all__ = ["generate_candidate_mask", "calculate_area_map", "filter_ch", "extract_ch_properties", "chimera"]
 
 def generate_candidate_mask(m171, m193, m211):
     r"""
@@ -18,16 +19,16 @@ def generate_candidate_mask(m171, m193, m211):
 
     Parameters
     ----------
-    m171 : `sunpy.map.Map
+    m171 : `sunpy.map.Map`
         This is the 171 Ångström UV map.
-    m193 : `sunpy.map.Map
+    m193 : `sunpy.map.Map`
         This is the 193 Ångström UV map.
-    m211 : `sunpy.map.Map
+    m211 : `sunpy.map.Map`
         This is the 211 Ångström UV map.
 
     Returns
     -------
-    numpy.ndarray
+    `numpy.ndarray`
         A binary version the Chimera mask.
     """
 

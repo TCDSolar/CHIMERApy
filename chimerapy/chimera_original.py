@@ -21,6 +21,7 @@ import sunpy.map
 
 from chimerapy import log
 
+__all__ = ["chimera", "chimera_legacy"]
 
 def chimera_legacy(im171=None, im193=None, im211=None, imhmi=None):
     file_path = "./"
