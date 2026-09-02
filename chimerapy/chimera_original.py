@@ -116,11 +116,11 @@ def chimera(im171, im193, im211, imhmi):
     dattoarc = heda["cdelt1"]
     convermul = dattoarc / hedm["cdelt1"]
     # =====Alternative coordinate systems=====
-    hdul = fits.open(im171[0])
-    hdul.verify("silentfix")
-    hdul[ext171].header["CUNIT1"] = "arcsec"
-    hdul[ext171].header["CUNIT2"] = "arcsec"
-    aia = sunpy.map.Map(hdul[ext171].data, hdul[ext171].header)
+    with fits.open(im171[0]) as hdul:
+        hdul.verify("silentfix")
+        hdul[ext171].header["CUNIT1"] = "arcsec"
+        hdul[ext171].header["CUNIT2"] = "arcsec"
+        aia = sunpy.map.Map(hdul[ext171].data.copy(), hdul[ext171].header.copy())
     adj = 4096.0 / aia.dimensions[0].value
     x, y = (np.meshgrid(*[np.arange(adj * v.value) for v in aia.dimensions]) * u.pixel) / adj
     hpc = aia.pixel_to_world(x, y)
