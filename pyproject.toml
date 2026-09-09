@@ -52,6 +52,20 @@ exclude = ["chimerapy._dev*"]
 [tool.setuptools_scm]
 version_file = "chimerapy/_version.py"
 
+[tool.repo-review.ignore]
+PY003 = "The LICENSE file is in licenses/"
+PY005 = "The template packages tests inside chimerapy/"
+PP006 = "We are not currently using dependency-groups"
+PP301 = "pytest config is in pytest.ini"
+PC110 = "ruff format not currently an option"
+PC140 = "No SunPy projects make heavy use of types"
+PC170 = "Not using pygrep"
+PC180 = "No markdown formatter required"
+PC901 = "Opt-out"
+PC902 = "Opt-out"
+MY = "No SunPy projects make heavy use of types"
+RF101 = "ruff extended linting option disabled, enable to use bugbear"
+
 [tool.gilesbot]
   [tool.gilesbot.pull_requests]
   enabled = true
@@ -68,25 +82,6 @@ version_file = "chimerapy/_version.py"
 
   number_incorrect_long = "The number in the changelog file you added does not match the number of this pull request. Please rename the file."
 
-<<<<<<<
-=======
-[tool.repo-review.ignore]
-PY003 = "The LICENSE file is in licenses/"
-PY005 = "The template packages tests inside chimerapy/"
-PP006 = "We are not currently using dependency-groups"
-PP301 = "pytest config is in pytest.ini"
-PC110 = "ruff format not currently an option"
-PC140 = "No SunPy projects make heavy use of types"
-PC170 = "Not using pygrep"
-PC180 = "No markdown formatter required"
-PC901 = "Opt-out"
-PC902 = "Opt-out"
-MY = "No SunPy projects make heavy use of types"
-RF101 = "ruff extended linting option disabled, enable to use bugbear"
-
-# TODO: This should be in towncrier.toml but Giles currently only works looks in
-# pyproject.toml we should move this back when it's fixed.
->>>>>>>
 [tool.towncrier]
   package = "chimerapy"
   filename = "CHANGELOG.rst"
