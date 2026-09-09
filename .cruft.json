@@ -1,6 +1,6 @@
 {
   "template": "https://github.com/sunpy/package-template",
-  "commit": "de26b5a88dcad688046a5a5edbe00b5af1793e13",
+  "commit": "6b48b2c1229bc797481920921502b67e90fd8bda",
   "checkout": null,
   "context": {
     "cookiecutter": {
@@ -27,7 +27,7 @@
       "matrix_room_id": "",
       "extra_ci_jobs": "",
       "use_sunpy_pr_template": "n",
-      "_sphinx_theme": "pydata",
+      "_sphinx_theme": "sunpy",
       "_parent_project": "",
       "_install_requires": "",
       "_copy_without_render": [
@@ -36,7 +36,7 @@
         ".github/workflows/zizmor.yml"
       ],
       "_template": "https://github.com/sunpy/package-template",
-      "_commit": "de26b5a88dcad688046a5a5edbe00b5af1793e13"
+      "_commit": "6b48b2c1229bc797481920921502b67e90fd8bda"
     }
   },
   "directory": null
